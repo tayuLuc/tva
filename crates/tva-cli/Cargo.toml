@@ -3,6 +3,7 @@ name = "tva-cli"
 version = "0.1.0"
 edition = "2021"
 description = "CLI for Temporal Video Analyzer"
+license = "MIT"
 
 [dependencies]
 tva-core = { path = "../tva-core" }

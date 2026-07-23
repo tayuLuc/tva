@@ -3,6 +3,7 @@ name = "tva-ffi"
 version = "0.1.0"
 edition = "2021"
 description = "C FFI shared library for tva-core"
+license = "MIT"
 
 [dependencies]
 tva-core = { path = "../tva-core" }
