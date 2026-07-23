@@ -1,0 +1,64 @@
+image: rust:latest
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
+  CARGO_TERM_COLOR: always
+
+cache:
+  paths:
+    - .cargo/
+    - target/
+
+stages:
+  - lint
+  - test
+  - targets
+
+lint:
+  stage: lint
+  script:
+    - rustup component add rustfmt clippy
+    - cargo fmt --all --check
+    - cargo clippy -p tva-core --lib -- -D warnings
+
+test:
+  stage: test
+  script:
+    - cargo test -p tva-core --lib
+    - cargo test -p tva-core --doc
+
+msrv:
+  stage: test
+  image: rust:1.88.0
+  script:
+    - cargo check -p tva-core
+
+targets:
+  stage: targets
+  script:
+    - rustup target add wasm32-unknown-unknown
+    - cargo check -p tva-wasm --target wasm32-unknown-unknown
+    - cargo build -p tva-ffi
+
+megalinter:
+  stage: lint
+  image: oxsecurity/megalinter-rust:v9
+  script:
+    - megainter
+  variables:
+    GIT_STRATEGY: clone
+    DEFAULT_BRANCH: main
+    REPORT_OUTPUT_FOLDER: none
+
+release:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - cargo build --release -p tva-cli
+    - |
+      mkdir -p artifacts
+      cp target/release/tva-cli artifacts/
+  artifacts:
+    paths:
+      - artifacts/
