@@ -3,9 +3,6 @@ vulnerability = "deny"
 unmaintained = "warn"
 yanked = "deny"
 
-[bans]
-multiple-versions = "allow"
-
 [licenses]
 allow = [
     "MIT",
