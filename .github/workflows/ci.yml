@@ -54,10 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo check -p tva-wasm --target wasm32-unknown-unknown
       - run: cargo build -p tva-ffi
       - run: cargo check -p tva-cli
       - run: cargo check -p tva-core --features compare-image,smooth-savgol,fft

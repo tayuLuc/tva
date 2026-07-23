@@ -4,5 +4,4 @@ members = [
     "crates/tva-core",
     "crates/tva-cli",
     "crates/tva-ffi",
-    "crates/tva-wasm",
 ]
