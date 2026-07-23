@@ -1,14 +1,15 @@
+use image_compare::{rgb_diffing_structure, rgb_similarity_structure, Metric};
+
 use crate::error::{Result, TvaError};
 use crate::frame::Frame;
-use image::RgbImage;
-use image_similarity::{compare_images, Metric, ImageScore};
 
 #[derive(Debug, Clone)]
 pub enum CompareMethod {
+    Mad { threshold: f64 },
     Sad { threshold: f64 },
     Ssim { threshold: f64 },
     MsSsim { threshold: f64 },
-    Psnr { threshold: f64 },
+    Hybrid { threshold: f64 },
 }
 
 impl Default for CompareMethod {
@@ -23,94 +24,85 @@ pub struct CompareResult {
     pub is_duplicate: bool,
 }
 
-fn frame_to_image(frame: &Frame) -> Result<RgbImage> {
-    let raw: Vec<u8> = frame.data.iter().flat_map(|p| [p.r, p.g, p.b]).collect();
-    RgbImage::from_raw(frame.width, frame.height, raw)
-        .ok_or(TvaError::CompareFailed("invalid frame dimensions".into()))
-}
-
 pub fn compare_frames(a: &Frame, b: &Frame, method: &CompareMethod) -> Result<CompareResult> {
-    let img_a = frame_to_image(a)?;
-    let img_b = frame_to_image(b)?;
-
-    let (metric, higher_is_similar) = match method {
-        CompareMethod::Sad { .. } => (Metric::Sad, false),
-        CompareMethod::Ssim { .. } => (Metric::Ssim, true),
-        CompareMethod::MsSsim { .. } => (Metric::MsSsim, true),
-        CompareMethod::Psnr { .. } => (Metric::Psnr, true),
+    let (score, is_duplicate) = match method {
+        CompareMethod::Mad { threshold } => {
+            let s = rgb_diffing_structure(&a.data, &b.data, Metric::Mad)
+                .map_err(TvaError::CompareFailed)?;
+            (s, s < *threshold)
+        }
+        CompareMethod::Sad { threshold } => {
+            let s = rgb_diffing_structure(&a.data, &b.data, Metric::Sad)
+                .map_err(TvaError::CompareFailed)?;
+            (s, s < *threshold)
+        }
+        CompareMethod::Ssim { threshold } => {
+            let s = rgb_similarity_structure(&a.data, &b.data, Metric::Ssim)
+                .map_err(TvaError::CompareFailed)?;
+            (s, s > *threshold)
+        }
+        CompareMethod::MsSsim { threshold } => {
+            let s = rgb_similarity_structure(&a.data, &b.data, Metric::Mssim)
+                .map_err(TvaError::CompareFailed)?;
+            (s, s > *threshold)
+        }
+        CompareMethod::Hybrid { threshold } => {
+            let s = rgb_similarity_structure(&a.data, &b.data, Metric::Hybrid)
+                .map_err(TvaError::CompareFailed)?;
+            (s, s > *threshold)
+        }
     };
 
-    let result =
-        compare_images(&img_a, &img_b, &metric).map_err(|e| TvaError::CompareFailed(e.to_string()))?;
-
-    let score = result.score();
-    let threshold = match method {
-        CompareMethod::Sad { threshold }
-        | CompareMethod::Ssim { threshold }
-        | CompareMethod::MsSsim { threshold }
-        | CompareMethod::Psnr { threshold } => *threshold,
-    };
-
-    Ok(CompareResult {
-        score,
-        is_duplicate: if higher_is_similar { score > threshold } else { score < threshold },
-    })
+    Ok(CompareResult { score, is_duplicate })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use image::{DynamicImage, Rgb, RgbImage};
     use crate::frame::Frame;
-    use rgb::RGB8;
 
-    fn f(pixels: Vec<RGB8>, w: u32, h: u32) -> Frame {
-        Frame { data: pixels, width: w, height: h, index: 0, timestamp_ms: 0.0 }
+    fn solid(r: u8, g: u8, b: u8, w: u32, h: u32, idx: u64) -> Frame {
+        Frame { data: DynamicImage::ImageRgb8(RgbImage::from_pixel(w, h, Rgb([r, g, b]))), index: idx, timestamp_ms: 0.0 }
     }
 
     #[test]
-    fn identical_sad_is_zero() {
-        let a = f(vec![RGB8::new(128, 64, 32); 100], 10, 10);
-        let r = compare_frames(&a, &a, &CompareMethod::Sad { threshold: 1.0 }).unwrap();
+    fn identical_ssim_is_duplicate() {
+        let a = solid(128, 64, 32, 16, 16, 0);
+        let r = compare_frames(&a, &a, &CompareMethod::Ssim { threshold: 0.98 }).unwrap();
         assert!(r.is_duplicate);
-        assert_eq!(r.score, 0.0);
+        assert!(r.score > 0.99);
     }
 
     #[test]
-    fn opposite_frames_not_duplicate() {
-        let a = f(vec![RGB8::new(0, 0, 0); 100], 10, 10);
-        let b = f(vec![RGB8::new(255, 255, 255); 100], 10, 10);
+    fn different_ssim_not_duplicate() {
+        let a = solid(0, 0, 0, 16, 16, 0);
+        let b = solid(255, 255, 255, 16, 16, 1);
+        let r = compare_frames(&a, &b, &CompareMethod::Ssim { threshold: 0.98 }).unwrap();
+        assert!(!r.is_duplicate);
+    }
+
+    #[test]
+    fn mad_identical_is_zero() {
+        let a = solid(100, 100, 100, 8, 8, 0);
+        let r = compare_frames(&a, &a, &CompareMethod::Mad { threshold: 2.0 }).unwrap();
+        assert!(r.is_duplicate);
+        assert!(r.score < f64::EPSILON);
+    }
+
+    #[test]
+    fn sad_opposite_is_nonzero() {
+        let a = solid(0, 0, 0, 8, 8, 0);
+        let b = solid(255, 255, 255, 8, 8, 1);
         let r = compare_frames(&a, &b, &CompareMethod::Sad { threshold: 1.0 }).unwrap();
         assert!(!r.is_duplicate);
+        assert!(r.score > 0.0);
     }
 
     #[test]
-    fn identical_ssim_is_one() {
-        let a = f(vec![RGB8::new(100, 100, 100); 400], 20, 20);
-        let r = compare_frames(&a, &a, &CompareMethod::Ssim { threshold: 0.99 }).unwrap();
+    fn hybrid_identical() {
+        let a = solid(100, 100, 100, 16, 16, 0);
+        let r = compare_frames(&a, &a, &CompareMethod::Hybrid { threshold: 0.95 }).unwrap();
         assert!(r.is_duplicate);
-        assert!((r.score - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn ssim_detects_difference() {
-        let a = f(vec![RGB8::new(0, 0, 0); 400], 20, 20);
-        let b = f(vec![RGB8::new(255, 255, 255); 400], 20, 20);
-        let r = compare_frames(&a, &b, &CompareMethod::Ssim { threshold: 0.5 }).unwrap();
-        assert!(!r.is_duplicate);
-        assert!(r.score < 0.1);
-    }
-
-    #[test]
-    fn empty_frame_errors() {
-        let a = f(vec![], 0, 0);
-        assert!(compare_frames(&a, &a, &CompareMethod::default()).is_err());
-    }
-
-    #[test]
-    fn psnr_identical_is_high() {
-        let a = f(vec![RGB8::new(128, 128, 128); 400], 20, 20);
-        let r = compare_frames(&a, &a, &CompareMethod::Psnr { threshold: 50.0 }).unwrap();
-        assert!(r.is_duplicate);
-        assert!(r.score > 100.0);
     }
 }

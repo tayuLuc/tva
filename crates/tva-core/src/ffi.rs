@@ -1,24 +1,17 @@
-//! C FFI entry points for embedding (Python, Node, C++).
-//! ponytail: stub — no-op source.
-
 use crate::config::PipelineConfig;
 use crate::events::NullSink;
 use crate::frame::{Frame, VideoMeta};
 use crate::pipeline;
 use crate::source::FrameSource;
-use rgb::RGB8;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 struct StubSource;
-
 impl FrameSource for StubSource {
     fn metadata(&self) -> VideoMeta {
         VideoMeta { fps: 0.0, width: 0, height: 0, total_frames: 0, duration_ms: 0.0, codec: String::new() }
     }
-    fn next_frame(&mut self) -> Option<Frame> {
-        None
-    }
+    fn next_frame(&mut self) -> Option<Frame> { None }
 }
 
 #[no_mangle]

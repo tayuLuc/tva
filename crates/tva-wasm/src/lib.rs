@@ -8,7 +8,7 @@ use tva_core::{
     pipeline,
     source::FrameSource,
 };
-use rgb::RGB8;
+use image::{DynamicImage, RgbImage};
 
 struct BufSource {
     data: Vec<u8>,
@@ -30,42 +30,25 @@ impl FrameSource for BufSource {
         }
     }
     fn next_frame(&mut self) -> Option<Frame> {
-        if self.index >= self.frame_count {
-            return None;
-        }
+        if self.index >= self.frame_count { return None; }
         let frame_size = (self.width * self.height * 3) as usize;
         let offset = self.index * frame_size;
-        let raw = &self.data[offset..offset + frame_size];
-        let pixels: Vec<RGB8> = raw.chunks_exact(3)
-            .map(|c| RGB8 { r: c[0], g: c[1], b: c[2] })
-            .collect();
+        let raw = self.data[offset..offset + frame_size].to_vec();
+        let img = RgbImage::from_raw(self.width, self.height, raw)?;
         let idx = self.index as u64;
         self.index += 1;
-        Some(Frame {
-            data: pixels,
-            width: self.width,
-            height: self.height,
-            index: idx,
-            timestamp_ms: idx as f64 * 33.333,
-        })
+        Some(Frame { data: DynamicImage::ImageRgb8(img), index: idx, timestamp_ms: idx as f64 * 33.333 })
     }
 }
 
 #[wasm_bindgen]
-pub fn analyze_frames_wasm(
-    data: Vec<u8>,
-    width: u32,
-    height: u32,
-    frame_count: usize,
-) -> String {
+pub fn analyze_frames_wasm(data: Vec<u8>, width: u32, height: u32, frame_count: usize) -> String {
     let mut source = BufSource { data, width, height, frame_count, index: 0 };
     match pipeline::analyze(&mut source, &PipelineConfig::default(), &mut NullSink) {
-        Ok(report) => serde_json::to_string(&report).unwrap(),
+        Ok(r) => serde_json::to_string(&r).unwrap(),
         Err(e) => format!(r#"{{"error":"{}"}}"#, e),
     }
 }
 
 #[wasm_bindgen]
-pub fn version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
+pub fn version() -> String { env!("CARGO_PKG_VERSION").to_string() }

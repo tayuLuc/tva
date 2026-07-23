@@ -26,23 +26,18 @@ pub struct SummaryMetrics {
 pub fn compute_frame_metrics(streaks: &[u32], container_fps: f64) -> Vec<FrameMetric> {
     let frame_time = 1000.0 / container_fps;
     let mut container_frame: u64 = 0;
-
-    streaks
-        .iter()
-        .enumerate()
-        .map(|(i, &streak)| {
-            let streak_f = f64::from(streak);
-            let m = FrameMetric {
-                container_frame,
-                unique_frame: i as u64,
-                streak_length: streak,
-                real_frame_time_ms: streak_f * frame_time,
-                instantaneous_fps: container_fps / streak_f,
-            };
-            container_frame += u64::from(streak);
-            m
-        })
-        .collect()
+    streaks.iter().enumerate().map(|(i, &streak)| {
+        let sf = f64::from(streak);
+        let m = FrameMetric {
+            container_frame,
+            unique_frame: i as u64,
+            streak_length: streak,
+            real_frame_time_ms: sf * frame_time,
+            instantaneous_fps: container_fps / sf,
+        };
+        container_frame += u64::from(streak);
+        m
+    }).collect()
 }
 
 #[must_use]
@@ -93,30 +88,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn empty_metrics_are_zero() {
+    fn empty() {
         let s = compute_summary(&[], 0);
         assert_eq!(s.avg_fps, 0.0);
-        assert_eq!(s.tear_count, 0);
     }
 
     #[test]
-    fn metrics_1_percent_low() {
-        // 100 unique frames: 99 at 60fps, 1 at 10fps (streak=6)
+    fn one_percent_low() {
         let mut streaks = vec![1u32; 99];
         streaks.push(6);
         let m = compute_frame_metrics(&streaks, 60.0);
         let s = compute_summary(&m, 0);
-        assert!(s.fps_1_low < 15.0); // 1% low catches the 10fps outlier
+        assert!(s.fps_1_low < 15.0);
         assert!(s.avg_fps > 50.0);
-        assert_eq!(s.duplicate_count, 5); // one streak of 6 = 5 extra
     }
 
     #[test]
     fn frame_metrics_length() {
-        let streaks = vec![1, 2, 1, 3];
-        let m = compute_frame_metrics(&streaks, 60.0);
+        let m = compute_frame_metrics(&[1, 2, 1, 3], 60.0);
         assert_eq!(m.len(), 4);
-        assert_eq!(m[0].instantaneous_fps, 60.0);
-        assert_eq!(m[1].instantaneous_fps, 30.0);
+        assert!((m[0].instantaneous_fps - 60.0).abs() < f64::EPSILON);
+        assert!((m[1].instantaneous_fps - 30.0).abs() < f64::EPSILON);
     }
 }

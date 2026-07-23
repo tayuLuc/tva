@@ -1,28 +1,33 @@
-use rgb::RGB8;
+use image::DynamicImage;
+use serde::Serialize;
 
-/// Unified video frame with pixel data and metadata.
+/// A single decoded video frame.
 #[derive(Debug, Clone)]
 pub struct Frame {
-    pub data: Vec<RGB8>,
-    pub width: u32,
-    pub height: u32,
+    pub data: DynamicImage,
     pub index: u64,
     pub timestamp_ms: f64,
 }
 
 impl Frame {
-    pub fn pixel_count(&self) -> usize {
-        (self.width * self.height) as usize
+    #[must_use]
+    pub fn width(&self) -> u32 {
+        self.data.width()
     }
 
-    /// Panics in debug if data length doesn't match dimensions.
-    pub fn validate(&self) {
-        debug_assert_eq!(self.data.len(), self.pixel_count());
+    #[must_use]
+    pub fn height(&self) -> u32 {
+        self.data.height()
+    }
+
+    #[must_use]
+    pub fn pixel_count(&self) -> usize {
+        (self.width() * self.height()) as usize
     }
 }
 
-/// Video-level metadata.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// Video metadata from the container.
+#[derive(Debug, Clone, Serialize)]
 pub struct VideoMeta {
     pub fps: f64,
     pub width: u32,

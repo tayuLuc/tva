@@ -6,12 +6,11 @@ description = "Core video analysis engine for Temporal Video Analyzer"
 
 [dependencies]
 image = "0.25"
-image-similarity = "0.6"
+image-compare = "0.5"
 palette = "0.7"
-dssim-core = "3.4"
-rgb = "0.8"
-savgol-rs = "0.1"
+staged-sg-filter = "0.2"
 rustfft = "6.2"
+dssim-core = { version = "3.4", optional = true }
 video-rs = { version = "0.10", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -21,6 +20,7 @@ thiserror = "2"
 [features]
 default = []
 decode = ["dep:video-rs"]
+multicore-ssim = ["dep:dssim-core"]
 
 [dev-dependencies]
 approx = "0.5"

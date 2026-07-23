@@ -8,8 +8,8 @@ pub enum TvaError {
     #[error("empty frame data")]
     EmptyFrame,
 
-    #[error("ssim computation failed")]
-    SsimFailed,
+    #[error("comparison failed: {0}")]
+    CompareFailed(String),
 
     #[error("savgol filter failed: {0}")]
     SavgolFailed(String),
