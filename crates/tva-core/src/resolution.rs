@@ -43,11 +43,11 @@ where
     let mut radial_power = vec![0.0f64; max_r];
     let mut radial_count = vec![0u64; max_r];
 
-    for sy in 0..h {
-        for sx in 0..w {
+    for (sy, row) in magnitude.iter().enumerate().take(h) {
+        for (sx, val) in row.iter().enumerate().take(w) {
             let r = (((sx as i64 - cx as i64).pow(2) + (sy as i64 - cy as i64).pow(2)) as f64).sqrt() as usize;
             if r < max_r {
-                radial_power[r] += magnitude[sy][sx];
+                radial_power[r] += val;
                 radial_count[r] += 1;
             }
         }

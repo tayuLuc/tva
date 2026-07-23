@@ -8,7 +8,7 @@ pub fn to_json(report: &Report) -> Result<String> {
 
 pub fn to_csv(report: &Report, out: &Path) -> Result<()> {
     let mut w = csv::Writer::from_path(out)?;
-    w.write_record(&["container_frame", "unique_frame", "streak_length", "real_frame_time_ms", "instantaneous_fps"])?;
+    w.write_record(["container_frame", "unique_frame", "streak_length", "real_frame_time_ms", "instantaneous_fps"])?;
     for f in &report.frames {
         w.write_record(&[
             f.container_frame.to_string(),
