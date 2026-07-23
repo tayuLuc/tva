@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 //! tva CLI — analyze video files from the command line.
 //! Machine-parseable JSON/CSV output for AI agents and scripts.
 
