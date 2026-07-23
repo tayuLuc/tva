@@ -60,7 +60,7 @@ pub fn analyze(
 
         events.on_event(AnalysisEvent::Progress { frame: frame.index, total: meta.total_frames });
         pframe = Some(frame);
-        fc += 1;
+        _fc += 1;
     }
 
     let fm = compute_frame_metrics(&streaks, cfps);
