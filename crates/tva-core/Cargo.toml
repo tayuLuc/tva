@@ -31,6 +31,9 @@ video-rs = { version = "0.10", optional = true }
 [lints.clippy]
 module_name_repetitions = "allow"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature = "image")'] }
+
 [features]
 default = []
 compare-image = ["dep:image", "dep:image-compare"]

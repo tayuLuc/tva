@@ -1,5 +1,3 @@
-use crate::pixel_buffer::PixelBuffer;
-
 /// Config for the analysis pipeline.
 /// Compiled comparator/smoother/decoder — use adapters with features.
 pub struct PipelineConfig {

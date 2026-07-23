@@ -5,7 +5,7 @@ use crate::events::{AnalysisEvent, EventSink};
 use crate::frame::Frame;
 use crate::metrics::{compute_frame_metrics, compute_summary};
 use crate::report::Report;
-use crate::resolution::{detect_resolution, ResolutionResult};
+use crate::resolution::ResolutionResult;
 use crate::source::FrameSource;
 use crate::traits::{FrameComparator, Smoother};
 
@@ -23,9 +23,10 @@ pub fn analyze(
     let mut dedup = DedupState::new(config.duplicate_threshold, comparator.higher_is_similar());
     let mut streaks: Vec<u32> = Vec::new();
     let mut tears: Vec<TearInfo> = Vec::new();
+    #[allow(unused_mut)]
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
     let mut pframe: Option<Frame> = None;
-    let mut fc: u64 = 0;
+    let mut _fc: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
         if let Some(dup) = dedup.process(&frame, comparator)? {
@@ -51,7 +52,7 @@ pub fn analyze(
         }
 
         #[cfg(feature = "fft")]
-        if config.detect_resolution && fc % config.resolution_sample_interval as u64 == 0 {
+        if config.detect_resolution && _fc % config.resolution_sample_interval as u64 == 0 {
             if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) {
                 resolutions.push(res);
             }
