@@ -42,7 +42,7 @@ impl FrameSource for BufSource {
 
 #[wasm_bindgen]
 pub fn analyze_frames_wasm(data: Vec<u8>, width: u32, height: u32, frame_count: usize) -> String {
-    let mut source = BufSource { data, width, height, frame_count, index: 0 };
+    let source = BufSource { data, width, height, frame_count, index: 0 };
     let _ = source;
     format!(r#"{{"error":"compare adapter needed"}}"#)
 }
