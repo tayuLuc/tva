@@ -14,6 +14,6 @@ allow = [
     "WTFPL",
     "NCSA",
 ]
-skip = [
-    { name = "dssim-core", licenses = ["AGPL-3.0"] },
+exceptions = [
+    { name = "dssim-core", allow = ["AGPL-3.0"] },
 ]
