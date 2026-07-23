@@ -42,4 +42,10 @@ impl From<csv::Error> for TvaError {
     }
 }
 
+impl From<std::io::Error> for TvaError {
+    fn from(e: std::io::Error) -> Self {
+        TvaError::Decode(e.to_string())
+    }
+}
+
 pub type Result<T> = std::result::Result<T, TvaError>;
