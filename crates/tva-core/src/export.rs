@@ -7,11 +7,10 @@ pub fn to_json(report: &Report) -> Result<String> {
 }
 
 pub fn to_csv(report: &Report, out: &Path) -> Result<()> {
-    let mut wtr = csv::Writer::from_path(out)?;
-    wtr.write_record(&["container_frame","unique_frame","streak_length","real_frame_time_ms","instantaneous_fps"])?;
+    let mut w = csv::Writer::from_path(out)?;
+    w.write_record(&["container_frame","unique_frame","streak_length","real_frame_time_ms","instantaneous_fps"])?;
     for f in &report.frames {
-        wtr.write_record(&[f.container_frame.to_string(), f.unique_frame.to_string(), f.streak_length.to_string(), format!("{:.4}", f.real_frame_time_ms), format!("{:.4}", f.instantaneous_fps)])?;
+        w.write_record(&[f.container_frame.to_string(), f.unique_frame.to_string(), f.streak_length.to_string(), format!("{:.4}", f.real_frame_time_ms), format!("{:.4}", f.instantaneous_fps)])?;
     }
-    wtr.flush()?;
-    Ok(())
+    w.flush()?; Ok(())
 }

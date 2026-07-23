@@ -1,0 +1,28 @@
+[advisories]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "deny"
+
+[bans]
+multiple-versions = "deny"
+skip = [
+    { name = "ansi_term", version = "0.12" },
+]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "MIT OR Apache-2.0",
+    "BSL-1.0",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "MPL-2.0",
+]
+deny = [
+    "AGPL-3.0",
+    "GPL-3.0",
+    "GPL-2.0",
+    "CC0-1.0",
+]

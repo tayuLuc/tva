@@ -11,14 +11,17 @@ pub enum TvaError {
     #[error("comparison failed: {0}")]
     CompareFailed(String),
 
-    #[error("savgol filter failed: {0}")]
-    SavgolFailed(String),
+    #[error("smoothing failed: {0}")]
+    SmoothingFailed(String),
 
     #[error("fft failed: {0}")]
     FftFailed(String),
 
     #[error("decode error: {0}")]
     Decode(String),
+
+    #[error("adapter not enabled: enable feature `{0}`")]
+    AdapterNotEnabled(&'static str),
 }
 
 pub type Result<T> = std::result::Result<T, TvaError>;

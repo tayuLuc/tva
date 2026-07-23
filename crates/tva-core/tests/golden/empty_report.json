@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "meta": {
+    "fps": 0.0,
+    "width": 0,
+    "height": 0,
+    "total_frames": 0,
+    "duration_ms": 0.0,
+    "codec": ""
+  },
+  "summary": {
+    "avg_fps": 0.0,
+    "fps_1_low": 0.0,
+    "fps_01_low": 0.0,
+    "p90_frame_time_ms": 0.0,
+    "p99_frame_time_ms": 0.0,
+    "total_container_frames": 0,
+    "total_unique_frames": 0,
+    "duplicate_count": 0,
+    "tear_count": 0
+  },
+  "frames": [],
+  "fps_smoothed": []
+}

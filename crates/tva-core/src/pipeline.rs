@@ -1,4 +1,3 @@
-use crate::compare::CompareMethod;
 use crate::config::PipelineConfig;
 use crate::detect::{DedupState, TearInfo};
 use crate::error::Result;
@@ -7,61 +6,64 @@ use crate::frame::Frame;
 use crate::metrics::{compute_frame_metrics, compute_summary};
 use crate::report::Report;
 use crate::resolution::{detect_resolution, ResolutionResult};
-use crate::smooth::smooth_fps;
 use crate::source::FrameSource;
+use crate::traits::{FrameComparator, Smoother};
 
+/// Generic pipeline: параметризован трейтами, не крейтами.
 pub fn analyze(
     source: &mut dyn FrameSource,
     config: &PipelineConfig,
+    comparator: &dyn FrameComparator,
+    smoother: &dyn Smoother,
     events: &mut dyn EventSink,
 ) -> Result<Report> {
     let meta = source.metadata();
-    let container_fps = meta.fps;
+    let cfps = meta.fps;
 
-    let mut dedup = DedupState::new();
+    let mut dedup = DedupState::new(config.duplicate_threshold, comparator.higher_is_similar());
     let mut streaks: Vec<u32> = Vec::new();
     let mut tears: Vec<TearInfo> = Vec::new();
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
-    let mut prev_frame: Option<Frame> = None;
-    let mut frame_count: u64 = 0;
+    let mut pframe: Option<Frame> = None;
+    let mut fc: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
-        if let Some(dup) = dedup.process(&frame, &config.compare_method)? {
-            if let Some(last) = streaks.last_mut() { *last = dup.streak_length; }
+        if let Some(dup) = dedup.process(&frame, comparator)? {
+            if let Some(l) = streaks.last_mut() { *l = dup.streak_length; }
             events.on_event(AnalysisEvent::DuplicateFound { frame: frame.index, streak: dup.streak_length });
-        } else {
-            streaks.push(1);
-        }
+        } else { streaks.push(1); }
 
         if config.detect_tears {
-            if let Some(ref prev) = prev_frame {
-                if let Some(mut tear) = crate::detect::detect_tear(prev, &frame, config.tear_threshold_high, config.tear_threshold_low)? {
-                    tear.frame_index = frame.index;
-                    tears.push(tear);
-                    events.on_event(AnalysisEvent::TearDetected { frame: frame.index, position: tear.tear_position });
+            if let Some(ref p) = pframe {
+                if let Some(mut t) = crate::detect::detect_tear(p, &frame, config.tear_threshold_high, config.tear_threshold_low)? {
+                    t.frame_index = frame.index;
+                    tears.push(t);
+                    events.on_event(AnalysisEvent::TearDetected { frame: frame.index, position: t.tear_position });
                 }
             }
         }
 
-        if config.detect_resolution && frame_count % config.resolution_sample_interval as u64 == 0 {
-            if let Ok(res) = detect_resolution(&frame) { resolutions.push(res); }
-        }
-
-        let prev_sec = prev_frame.as_ref().map_or(-1i64, |f| (f.timestamp_ms / 1000.0) as i64);
-        let cur_sec = (frame.timestamp_ms / 1000.0) as i64;
-        if cur_sec > prev_sec && prev_sec >= 0 {
-            events.on_event(AnalysisEvent::SecondComplete { second: cur_sec as u32, unique_frames: streaks.len() as u32 });
+        #[cfg(feature = "fft")]
+        if config.detect_resolution && fc % config.resolution_sample_interval as u64 == 0 {
+            if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) { resolutions.push(res); }
         }
 
         events.on_event(AnalysisEvent::Progress { frame: frame.index, total: meta.total_frames });
-        prev_frame = Some(frame);
-        frame_count += 1;
+        pframe = Some(frame);
+        fc += 1;
     }
 
-    let frame_metrics = compute_frame_metrics(&streaks, container_fps);
-    let summary = compute_summary(&frame_metrics, tears.len() as u64);
-    let fps_raw: Vec<f64> = frame_metrics.iter().map(|m| m.instantaneous_fps).collect();
-    let fps_smoothed = smooth_fps(&fps_raw, config.smooth_window, config.smooth_polyorder).unwrap_or(fps_raw);
+    let fm = compute_frame_metrics(&streaks, cfps);
+    let summary = compute_summary(&fm, tears.len() as u64);
+    let fps_raw: Vec<f64> = fm.iter().map(|m| m.instantaneous_fps).collect();
+    let fps_smooth = smoother.smooth(&fps_raw).unwrap_or(fps_raw);
 
-    Ok(Report { schema_version: 1, meta, summary, frames: frame_metrics, fps_smoothed, tears, resolution: if config.detect_resolution { Some(resolutions) } else { None } })
+    Ok(Report {
+        schema_version: 1,
+        meta, summary,
+        frames: fm,
+        fps_smoothed: fps_smooth,
+        tears: Some(tears).filter(|t| !t.is_empty()),
+        resolution: if cfg!(feature = "fft") && config.detect_resolution { Some(resolutions) } else { None },
+    })
 }

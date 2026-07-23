@@ -1,8 +1,7 @@
-use image::DynamicImage;
-
-use crate::compare::{compare_frames, CompareMethod};
 use crate::error::Result;
 use crate::frame::Frame;
+use crate::pixel_buffer::PixelBuffer;
+use crate::traits::FrameComparator;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DuplicateInfo {
@@ -11,62 +10,42 @@ pub struct DuplicateInfo {
     pub streak_length: u32,
 }
 
-/// Stateful duplicate detector with double-buffered DynamicImage.
 pub struct DedupState {
-    buf_a: Option<DynamicImage>,
-    buf_b: Option<DynamicImage>,
-    prev_is_a: bool,
+    prev: Option<Vec<u8>>,
+    prev_size: (u32, u32),
     current_streak: u32,
     unique_frame_index: u64,
     has_prev: bool,
+    threshold: f64,
+    higher_is_similar: bool,
 }
 
 impl DedupState {
-    #[must_use]
-    pub fn new() -> Self {
-        Self {
-            buf_a: None,
-            buf_b: None,
-            prev_is_a: true,
-            current_streak: 0,
-            unique_frame_index: 0,
-            has_prev: false,
-        }
+    pub fn new(threshold: f64, higher_is_similar: bool) -> Self {
+        Self { prev: None, prev_size: (0, 0), current_streak: 0, unique_frame_index: 0, has_prev: false, threshold, higher_is_similar }
     }
 
-    fn prev_frame(&self) -> Option<&DynamicImage> {
-        if self.prev_is_a { self.buf_a.as_ref() } else { self.buf_b.as_ref() }
-    }
-
-    pub fn process(&mut self, frame: &Frame, method: &CompareMethod) -> Result<Option<DuplicateInfo>> {
+    pub fn process(&mut self, frame: &Frame, comparator: &dyn FrameComparator) -> Result<Option<DuplicateInfo>> {
         if !self.has_prev {
-            self.buf_a = Some(frame.data.clone());
+            self.prev = Some(frame.data.as_bytes().to_vec());
+            self.prev_size = (frame.data.width(), frame.data.height());
             self.has_prev = true;
             self.current_streak = 1;
             self.unique_frame_index = 0;
             return Ok(None);
         }
 
-        let prev_data = self.prev_frame().expect("has_prev guarantees data");
-        let prev_frame = Frame {
-            data: prev_data.clone(),
-            index: self.unique_frame_index,
-            timestamp_ms: 0.0,
-        };
+        let prev_data = self.prev.take().unwrap();
+        let prev_buf = PixelBuffer::new(prev_data, self.prev_size.0, self.prev_size.1)?;
+        let score = comparator.compare(&frame.data, &prev_buf)?;
 
-        let result = compare_frames(frame, &prev_frame, method)?;
-
-        if result.is_duplicate {
+        if (self.higher_is_similar && score > self.threshold) || (!self.higher_is_similar && score < self.threshold) {
+            self.prev = Some(prev_buf.into_bytes());
             self.current_streak += 1;
-            Ok(Some(DuplicateInfo {
-                frame_index: frame.index,
-                streak_start: self.unique_frame_index,
-                streak_length: self.current_streak,
-            }))
+            Ok(Some(DuplicateInfo { frame_index: frame.index, streak_start: self.unique_frame_index, streak_length: self.current_streak }))
         } else {
-            let target = if self.prev_is_a { &mut self.buf_b } else { &mut self.buf_a };
-            *target = Some(frame.data.clone());
-            self.prev_is_a = !self.prev_is_a;
+            self.prev = Some(frame.data.as_bytes().to_vec());
+            self.prev_size = (frame.data.width(), frame.data.height());
             self.current_streak = 1;
             self.unique_frame_index = frame.index;
             Ok(None)
@@ -74,11 +53,6 @@ impl DedupState {
     }
 }
 
-impl Default for DedupState {
-    fn default() -> Self { Self::new() }
-}
-
-/// Information about a detected screen tear.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TearInfo {
     pub frame_index: u64,
@@ -86,41 +60,15 @@ pub struct TearInfo {
     pub tear_position: f32,
 }
 
-/// Detect a horizontal tear between two frames.
-/// ponytail: per-row scanline diff; no SIMD yet.
-pub fn detect_tear(
-    a: &Frame,
-    b: &Frame,
-    threshold_high: f64,
-    threshold_low: f64,
-) -> Result<Option<TearInfo>> {
-    let a_rgb = a.data.as_rgb8().ok_or(crate::error::TvaError::CompareFailed("not RGB8".into()))?;
-    let b_rgb = b.data.as_rgb8().ok_or(crate::error::TvaError::CompareFailed("not RGB8".into()))?;
-
-    let w = a_rgb.width() as usize;
-    let h = a_rgb.height() as usize;
-
+pub fn detect_tear(a: &Frame, b: &Frame, th_high: f64, th_low: f64) -> Result<Option<TearInfo>> {
+    let ab = a.data.as_bytes(); let bb = b.data.as_bytes();
+    let w = a.data.width() as usize; let h = a.data.height() as usize;
+    let row = w * 3;
     for y in 1..h {
-        let prev_off = (y - 1) * w;
-        let cur_off = y * w;
-
-        let prev_row: f64 = a_rgb.as_raw()[prev_off * 3..(prev_off + w) * 3]
-            .iter().zip(&b_rgb.as_raw()[prev_off * 3..(prev_off + w) * 3])
-            .map(|(x, y)| u64::from(x.abs_diff(*y)))
-            .sum::<u64>() as f64 / w as f64;
-
-        let cur_row: f64 = a_rgb.as_raw()[cur_off * 3..(cur_off + w) * 3]
-            .iter().zip(&b_rgb.as_raw()[cur_off * 3..(cur_off + w) * 3])
-            .map(|(x, y)| u64::from(x.abs_diff(*y)))
-            .sum::<u64>() as f64 / w as f64;
-
-        if cur_row > threshold_high && prev_row < threshold_low {
-            return Ok(Some(TearInfo {
-                frame_index: a.index,
-                tear_y: y as u32,
-                tear_position: y as f32 / h as f32,
-            }));
-        }
+        let po = (y - 1) * row; let co = y * row;
+        let pd: f64 = ab[po..po + row].iter().zip(&bb[po..po + row]).map(|(&x, &y)| u64::from(x.abs_diff(y))).sum::<u64>() as f64 / w as f64;
+        let cd: f64 = ab[co..co + row].iter().zip(&bb[co..co + row]).map(|(&x, &y)| u64::from(x.abs_diff(y))).sum::<u64>() as f64 / w as f64;
+        if cd > th_high && pd < th_low { return Ok(Some(TearInfo { frame_index: a.index, tear_y: y as u32, tear_position: y as f32 / h as f32 })); }
     }
     Ok(None)
 }
@@ -128,22 +76,21 @@ pub fn detect_tear(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{DynamicImage, Rgb, RgbImage};
     use crate::frame::Frame;
-
-    fn solid(r: u8, g: u8, b: u8, w: u32, h: u32) -> Frame {
-        Frame { data: DynamicImage::ImageRgb8(RgbImage::from_pixel(w, h, Rgb([r, g, b]))), index: 0, timestamp_ms: 0.0 }
+    use crate::pixel_buffer::PixelBuffer;
+    struct Dummy;
+    impl FrameComparator for Dummy {
+        fn compare(&self, a: &PixelBuffer, b: &PixelBuffer) -> Result<f64> { Ok(if a.as_bytes() == b.as_bytes() { 1.0 } else { 0.0 }) }
+        fn higher_is_similar(&self) -> bool { true }
+        fn name(&self) -> &'static str { "dummy" }
     }
-
-    #[test]
-    fn streak_tracking() {
-        let mut d = DedupState::new();
-        let m = CompareMethod::Ssim { threshold: 0.98 };
-        let a = solid(100, 100, 100, 4, 4);
-        let b = solid(200, 200, 200, 4, 4);
-
-        assert!(d.process(&a, &m).unwrap().is_none());
-        assert!(d.process(&solid(100, 100, 100, 4, 4), &m).unwrap().is_some());
-        assert!(d.process(&b, &m).unwrap().is_none());
+    fn f(d: Vec<u8>, w: u32, h: u32, i: u64) -> Frame {
+        Frame { data: PixelBuffer::new(d, w, h).unwrap(), index: i, timestamp_ms: 0.0 }
+    }
+    #[test] fn streak() {
+        let mut d = DedupState::new(0.5, true);
+        assert!(d.process(&f(vec![100; 12], 2, 2, 0), &Dummy).unwrap().is_none());
+        assert!(d.process(&f(vec![100; 12], 2, 2, 1), &Dummy).unwrap().is_some());
+        assert!(d.process(&f(vec![200; 12], 2, 2, 2), &Dummy).unwrap().is_none());
     }
 }

@@ -1,32 +1,15 @@
-use image::DynamicImage;
+use crate::pixel_buffer::PixelBuffer;
 use serde::Serialize;
 
-/// A single decoded video frame.
+/// Один видео-кадр. Ядро не знает о внешних типах изображений.
 #[derive(Debug, Clone)]
 pub struct Frame {
-    pub data: DynamicImage,
+    pub data: PixelBuffer,
     pub index: u64,
     pub timestamp_ms: f64,
 }
 
-impl Frame {
-    #[must_use]
-    pub fn width(&self) -> u32 {
-        self.data.width()
-    }
-
-    #[must_use]
-    pub fn height(&self) -> u32 {
-        self.data.height()
-    }
-
-    #[must_use]
-    pub fn pixel_count(&self) -> usize {
-        (self.width() * self.height()) as usize
-    }
-}
-
-/// Video metadata from the container.
+/// Метаданные видео.
 #[derive(Debug, Clone, Serialize)]
 pub struct VideoMeta {
     pub fps: f64,
