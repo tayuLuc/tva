@@ -24,6 +24,7 @@ pub fn analyze(
     #[allow(unused_mut)]
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
     let mut pframe: Option<Frame> = None;
+    #[allow(unused_variables)]
     let mut frame_counter: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
