@@ -1,5 +1,6 @@
 #[cfg(feature = "compare-image")]
 pub mod image_compare;
+pub mod native;
 
 #[cfg(feature = "compare-dssim")]
 pub mod dssim;

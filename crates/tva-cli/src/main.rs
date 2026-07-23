@@ -22,7 +22,7 @@ enum Command {
         output: Option<PathBuf>,
         #[arg(long)]
         fps: Option<f64>,
-        /// Comparison metric: ssim, hybrid
+        /// Comparison metric: ssim, hybrid, mad
         #[arg(long, default_value = "ssim")]
         metric: String,
         /// Duplicate threshold in the metric's native scale.

@@ -29,7 +29,7 @@ pub enum TvaError {
     #[error("csv error: {0}")]
     Csv(String),
 
-    #[error("unknown metric `{0}` (expected ssim, hybrid)")]
+    #[error("unknown metric `{0}` (expected ssim, hybrid, mad)")]
     UnknownMetric(String),
 }
 

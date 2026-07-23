@@ -4,6 +4,7 @@
 //! `PipelineConfig.duplicate_threshold`), только считают score.
 //! `metric_by_name` — фабрика, возвращающая `(comparator, default_threshold)`.
 
+use super::native::MadComparator;
 use crate::error::{Result, TvaError};
 use crate::pixel_buffer::PixelBuffer;
 use crate::traits::FrameComparator;
@@ -59,6 +60,7 @@ pub fn metric_by_name(name: &str) -> Result<MetricSpec> {
     match name.trim().to_ascii_lowercase().as_str() {
         "ssim" => Ok(MetricSpec { comparator: Box::new(SsimComparator), default_threshold: 0.98 }),
         "hybrid" => Ok(MetricSpec { comparator: Box::new(HybridComparator), default_threshold: 0.95 }),
+        "mad" => Ok(MetricSpec { comparator: Box::new(MadComparator), default_threshold: 2.0 }),
         other => Err(TvaError::UnknownMetric(other.to_string())),
     }
 }
@@ -69,7 +71,7 @@ mod tests {
 
     #[test]
     fn known_metrics() {
-        for n in ["ssim", "hybrid"] {
+        for n in ["ssim", "hybrid", "mad"] {
             assert!(metric_by_name(n).is_ok(), "{n}");
         }
     }
@@ -78,6 +80,7 @@ mod tests {
     fn case_and_trim() {
         assert!(metric_by_name("  SSIM ").is_ok());
         assert!(metric_by_name("Hybrid").is_ok());
+        assert!(metric_by_name("Mad").is_ok());
     }
 
     #[test]
@@ -88,5 +91,7 @@ mod tests {
     #[test]
     fn similarity_flags_consistent() {
         assert!(metric_by_name("ssim").unwrap().comparator.higher_is_similar());
+        assert!(metric_by_name("hybrid").unwrap().comparator.higher_is_similar());
+        assert!(!metric_by_name("mad").unwrap().comparator.higher_is_similar());
     }
 }
