@@ -24,8 +24,8 @@ fn pixel_buffer_from_bytes() {
 #[test]
 fn fixture_duplicate_detection() {
     use tva_core::{
-        adapters::{identity_smoother::IdentitySmoother, image_compare::SsimComparator},
         adapters::image_seq::ImageSeqDecoder,
+        adapters::{identity_smoother::IdentitySmoother, image_compare::SsimComparator},
         config::PipelineConfig,
         events::NullSink,
         pipeline,
