@@ -54,32 +54,6 @@ jobs:
           name: tva-cli-${{ matrix.target }}
           path: tva-cli-${{ matrix.target }}.*
 
-  # ── Publish to crates.io ──
-  publish:
-    name: Publish
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'tayuLuc'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-
-      - name: Publish tva-core
-        run: cargo publish -p tva-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
-
-      - name: Publish tva-cli
-        run: cargo publish -p tva-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
-
-      - name: Publish tva-ffi
-        run: cargo publish -p tva-ffi --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
-
-      - name: Publish tva-wasm
-        run: cargo publish -p tva-wasm --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
-
   # ── GitHub Release ──
   release:
     name: GitHub Release
