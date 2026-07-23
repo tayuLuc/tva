@@ -6,12 +6,10 @@ use crate::frame::Frame;
 use crate::metrics::{compute_frame_metrics, compute_summary};
 use crate::report::Report;
 use crate::resolution::ResolutionResult;
-use crate::source::FrameSource;
-use crate::traits::{FrameComparator, Smoother};
+use crate::traits::{FrameComparator, FrameDecoder, Smoother};
 
-/// Generic pipeline: параметризован трейтами, не крейтами.
 pub fn analyze(
-    source: &mut dyn FrameSource,
+    source: &mut dyn FrameDecoder,
     config: &PipelineConfig,
     comparator: &dyn FrameComparator,
     smoother: &dyn Smoother,
@@ -26,7 +24,7 @@ pub fn analyze(
     #[allow(unused_mut)]
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
     let mut pframe: Option<Frame> = None;
-    let mut _fc: u64 = 0;
+    let mut frame_counter: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
         if let Some(dup) = dedup.process(&frame, comparator)? {
@@ -52,7 +50,7 @@ pub fn analyze(
         }
 
         #[cfg(feature = "fft")]
-        if config.detect_resolution && _fc % config.resolution_sample_interval as u64 == 0 {
+        if config.detect_resolution && frame_counter % config.resolution_sample_interval as u64 == 0 {
             if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) {
                 resolutions.push(res);
             }
@@ -60,7 +58,7 @@ pub fn analyze(
 
         events.on_event(AnalysisEvent::Progress { frame: frame.index, total: meta.total_frames });
         pframe = Some(frame);
-        _fc += 1;
+        frame_counter += 1;
     }
 
     let fm = compute_frame_metrics(&streaks, cfps);

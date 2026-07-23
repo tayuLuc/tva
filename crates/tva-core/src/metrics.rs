@@ -26,22 +26,19 @@ pub struct SummaryMetrics {
 pub fn compute_frame_metrics(streaks: &[u32], container_fps: f64) -> Vec<FrameMetric> {
     let t = 1000.0 / container_fps;
     let mut cf: u64 = 0;
-    streaks
-        .iter()
-        .enumerate()
-        .map(|(i, &s)| {
-            let sf = f64::from(s);
-            let m = FrameMetric {
-                container_frame: cf,
-                unique_frame: i as u64,
-                streak_length: s,
-                real_frame_time_ms: sf * t,
-                instantaneous_fps: container_fps / sf,
-            };
-            cf += u64::from(s);
-            m
-        })
-        .collect()
+    let mut result = Vec::with_capacity(streaks.len());
+    for (i, &s) in streaks.iter().enumerate() {
+        let sf = f64::from(s);
+        result.push(FrameMetric {
+            container_frame: cf,
+            unique_frame: i as u64,
+            streak_length: s,
+            real_frame_time_ms: sf * t,
+            instantaneous_fps: container_fps / sf,
+        });
+        cf += u64::from(s);
+    }
+    result
 }
 
 #[must_use]

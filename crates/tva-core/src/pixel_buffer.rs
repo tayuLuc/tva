@@ -51,7 +51,7 @@ impl PixelBuffer {
     }
 }
 
-#[cfg(feature = "image")]
+#[cfg(any(feature = "compare-image", feature = "compare-dssim"))]
 impl PixelBuffer {
     #[must_use]
     pub fn to_dynamic_image(&self) -> image::DynamicImage {

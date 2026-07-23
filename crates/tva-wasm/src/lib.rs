@@ -3,7 +3,7 @@
 use tva_core::{
     frame::{Frame, VideoMeta},
     pixel_buffer::PixelBuffer,
-    source::FrameSource,
+    traits::FrameDecoder,
 };
 use wasm_bindgen::prelude::*;
 
@@ -15,7 +15,7 @@ struct BufSource {
     index: usize,
 }
 
-impl FrameSource for BufSource {
+impl FrameDecoder for BufSource {
     fn metadata(&self) -> VideoMeta {
         VideoMeta {
             fps: if self.frame_count > 1 { 30.0 } else { 0.0 },

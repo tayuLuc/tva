@@ -1,7 +1,0 @@
-use crate::frame::{Frame, VideoMeta};
-
-/// Legacy alias — просто трейт FrameDecoder.
-pub trait FrameSource {
-    fn metadata(&self) -> VideoMeta;
-    fn next_frame(&mut self) -> Option<Frame>;
-}

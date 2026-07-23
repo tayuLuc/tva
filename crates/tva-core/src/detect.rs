@@ -43,8 +43,8 @@ impl DedupState {
             return Ok(None);
         }
 
-        let prev_data = self.prev.take().unwrap();
-        let prev_buf = PixelBuffer::new(prev_data, self.prev_size.0, self.prev_size.1)?;
+        let prev_data = self.prev.as_ref().expect("has_prev guarantees data");
+        let prev_buf = PixelBuffer::new(prev_data.clone(), self.prev_size.0, self.prev_size.1)?;
         let score = comparator.compare(&frame.data, &prev_buf)?;
 
         if (self.higher_is_similar && score > self.threshold) || (!self.higher_is_similar && score < self.threshold) {

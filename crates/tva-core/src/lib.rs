@@ -14,7 +14,6 @@ pub mod pipeline;
 pub mod pixel_buffer;
 pub mod report;
 pub mod resolution;
-pub mod source;
 pub mod traits;
 
 pub use detect::TearInfo;
@@ -24,4 +23,4 @@ pub use metrics::{FrameMetric, SummaryMetrics};
 pub use pixel_buffer::PixelBuffer;
 pub use report::Report;
 pub use resolution::ResolutionResult;
-pub use traits::{FrameComparator, Smoother};
+pub use traits::{FrameComparator, FrameDecoder, Smoother};

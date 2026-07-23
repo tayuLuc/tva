@@ -9,7 +9,7 @@ description = "Core video analysis engine — FPS, duplicates, tears, frametime 
 homepage = "https://github.com/tayuLuc/tva"
 repository = "https://github.com/tayuLuc/tva"
 keywords = ["video", "analysis", "fps", "duplicate", "tear"]
-categories = ["multimedia::video", "science::robotics"]
+categories = ["multimedia::video"]
 
 [lib]
 name = "tva_core"
@@ -23,6 +23,7 @@ csv = "1"
 
 image = { version = "0.25", optional = true }
 image-compare = { version = "0.5", optional = true }
+rgb = "0.8"
 dssim-core = { version = "3.4", optional = true }
 staged-sg-filter = { version = "0.2", optional = true }
 rustfft = { version = "6.2", optional = true }
@@ -32,9 +33,6 @@ video-rs = { version = "0.10", optional = true }
 module_name_repetitions = "allow"
 needless_borrows_for_generic_args = "allow"
 needless_range_loop = "allow"
-
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("image"))'] }
 
 [features]
 default = []
