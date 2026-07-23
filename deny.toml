@@ -1,7 +1,5 @@
-[advisories]
-vulnerability = "deny"
-unmaintained = "allow"
-yanked = "deny"
+[advisories.ignore]
+unmaintained = ["paste"]
 
 [licenses]
 allow = [
