@@ -35,15 +35,10 @@ fn fixture_duplicate_detection() {
     let mut decoder = ImageSeqDecoder::open(&dir, Some(30.0)).unwrap();
     let comparator = SsimComparator;
     let smoother: Box<dyn Smoother> = Box::new(IdentitySmoother);
-    let config = PipelineConfig {
-        duplicate_threshold: 0.98,
-        detect_tears: true,
-        ..Default::default()
-    };
+    let config = PipelineConfig { duplicate_threshold: 0.98, detect_tears: true, ..Default::default() };
 
     let mut sink = NullSink;
-    let report: Report =
-        pipeline::analyze(&mut decoder, &config, &comparator, smoother.as_ref(), &mut sink).unwrap();
+    let report: Report = pipeline::analyze(&mut decoder, &config, &comparator, smoother.as_ref(), &mut sink).unwrap();
 
     // 5 total frames, 3 unique (frames 1+2 are dupes, 4+5 are dupes)
     assert_eq!(report.summary.total_container_frames, 5);

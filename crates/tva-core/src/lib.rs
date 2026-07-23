@@ -22,7 +22,7 @@ pub use frame::{Frame, VideoMeta};
 pub use metrics::{FrameMetric, SummaryMetrics};
 pub use pixel_buffer::PixelBuffer;
 pub use report::Report;
-pub use resolution::ResolutionResult;
+pub use resolution::{ResolutionResult, UpscaleVerdict};
 pub use traits::{FrameComparator, FrameDecoder, Smoother};
 
 pub use adapters::identity_smoother::IdentitySmoother;
