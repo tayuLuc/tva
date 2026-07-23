@@ -13,6 +13,7 @@ pub struct PipelineConfig {
     pub resolution_sample_interval: u32,
     pub smooth_window: usize,
     pub smooth_polyorder: usize,
+    pub dismiss_tear_percentage: f64,
 }
 
 impl Default for PipelineConfig {
@@ -26,6 +27,7 @@ impl Default for PipelineConfig {
             resolution_sample_interval: 30,
             smooth_window: 21,
             smooth_polyorder: 3,
+            dismiss_tear_percentage: 0.5,
         }
     }
 }
