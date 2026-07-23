@@ -3,6 +3,12 @@ name = "tva-wasm"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+authors = ["TVA Contributors"]
+description = "WASM bindings for tva-core"
+homepage = "https://github.com/YOUR_USER/tva"
+repository = "https://github.com/YOUR_USER/tva"
+keywords = ["video", "analysis", "wasm"]
+categories = ["wasm", "multimedia::video"]
 
 [dependencies]
 tva-core = { path = "../tva-core" }

@@ -2,8 +2,13 @@
 name = "tva-ffi"
 version = "0.1.0"
 edition = "2021"
-description = "C FFI shared library for tva-core"
 license = "MIT"
+authors = ["TVA Contributors"]
+description = "C FFI shared library for tva-core"
+homepage = "https://github.com/YOUR_USER/tva"
+repository = "https://github.com/YOUR_USER/tva"
+keywords = ["video", "analysis", "ffi"]
+categories = ["external-ffi-bindings", "multimedia::video"]
 
 [dependencies]
 tva-core = { path = "../tva-core" }

@@ -2,8 +2,13 @@
 name = "tva-cli"
 version = "0.1.0"
 edition = "2021"
-description = "CLI for Temporal Video Analyzer"
 license = "MIT"
+authors = ["TVA Contributors"]
+description = "CLI for Temporal Video Analyzer — analyze FPS, duplicates, tears"
+homepage = "https://github.com/YOUR_USER/tva"
+repository = "https://github.com/YOUR_USER/tva"
+keywords = ["video", "analysis", "cli", "fps"]
+categories = ["command-line-utilities", "multimedia::video"]
 
 [dependencies]
 tva-core = { path = "../tva-core" }
