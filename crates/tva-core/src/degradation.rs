@@ -191,7 +191,6 @@ mod tests {
     use super::*;
     use crate::frame::Frame;
     use crate::pixel_buffer::PixelBuffer;
-    use crate::pixel_buffer::PixelBuffer;
 
     struct VecSource {
         frames: Vec<Frame>,
