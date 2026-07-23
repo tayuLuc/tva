@@ -1,6 +1,6 @@
 use crate::error::Result;
 use crate::events::{AnalysisEvent, EventSink};
-use crate::frame::VideoMeta;
+use crate::frame::{Frame, VideoMeta};
 use crate::pixel_buffer::PixelBuffer;
 use crate::traits::{FrameComparator, FrameDecoder};
 use serde::{Deserialize, Serialize};
