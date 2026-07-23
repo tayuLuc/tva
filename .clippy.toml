@@ -12,8 +12,4 @@ allow = [
   "module_name_repetitions",  # tva-core::core is fine
 ]
 
-# Deny these
-deny = [
-  "unsafe_code",
-  "missing_docs_in_private_items",
-]
+# Deny these (unsafe_code enforced by #![forbid] in lib.rs)
