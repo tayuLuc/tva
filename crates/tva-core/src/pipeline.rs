@@ -24,8 +24,7 @@ pub fn analyze(
     #[allow(unused_mut)]
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
     let mut pframe: Option<Frame> = None;
-    #[allow(unused_variables)]
-    let mut frame_counter: u64 = 0;
+    let mut _frame_counter: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
         if let Some(dup) = dedup.process(&frame, comparator)? {
@@ -51,7 +50,7 @@ pub fn analyze(
         }
 
         #[cfg(feature = "fft")]
-        if config.detect_resolution && frame_counter % config.resolution_sample_interval as u64 == 0 {
+        if config.detect_resolution && _frame_counter % config.resolution_sample_interval as u64 == 0 {
             if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) {
                 resolutions.push(res);
             }
@@ -59,7 +58,7 @@ pub fn analyze(
 
         events.on_event(AnalysisEvent::Progress { frame: frame.index, total: meta.total_frames });
         pframe = Some(frame);
-        frame_counter += 1;
+        _frame_counter += 1;
     }
 
     let fm = compute_frame_metrics(&streaks, cfps);
