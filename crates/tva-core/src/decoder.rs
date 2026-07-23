@@ -1,14 +1,16 @@
-//! Decode video files into `Frame`s using ffmpeg-next.
+//! Decode video files into raw frame data using ffmpeg-next.
 //! HW acceleration (NVDEC/VAAPI/VideoToolbox) auto-detected.
 
-use crate::Frame;
+use crate::pipeline::{FrameData, VideoMeta};
 use std::path::Path;
 
-/// Decode a video file into a vector of frames.
+/// Decode a video file into a vector of raw RGB frame data.
 /// ponytail: software decode only for now; HW accel is one flag away.
-pub fn decode_file(path: &Path) -> Result<Vec<Frame>, Box<dyn std::error::Error>> {
+pub fn decode_file(path: &Path) -> Result<(Vec<FrameData>, VideoMeta), Box<dyn std::error::Error>> {
     // stub: ffmpeg-next decode loop goes here
-    // ffmpeg_next::format::input(&path) -> decode video stream -> push frames
     let _ = path;
-    Ok(Vec::new())
+    let meta = VideoMeta {
+        width: 0, height: 0, fps: 0.0, total_frames: 0, codec: String::new(),
+    };
+    Ok((Vec::new(), meta))
 }

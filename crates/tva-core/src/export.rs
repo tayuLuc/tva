@@ -1,6 +1,6 @@
 //! Export analysis results to JSON, CSV, overlay video.
 
-use crate::Report;
+use crate::pipeline::Report;
 use std::path::Path;
 
 /// Serialize report as pretty JSON.
