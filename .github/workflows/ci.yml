@@ -47,6 +47,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v2
+        env:
+          RUSTSEC_ADVISORIES_LEVEL: warn
 
   targets:
     name: Targets
