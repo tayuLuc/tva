@@ -5,8 +5,8 @@ edition = "2021"
 license = "MIT"
 authors = ["TVA Contributors"]
 description = "C FFI shared library for tva-core"
-homepage = "https://github.com/YOUR_USER/tva"
-repository = "https://github.com/YOUR_USER/tva"
+homepage = "https://github.com/tayuLuc/tva"
+repository = "https://github.com/tayuLuc/tva"
 keywords = ["video", "analysis", "ffi"]
 categories = ["external-ffi-bindings", "multimedia::video"]
 

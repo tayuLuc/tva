@@ -1,7 +1,7 @@
 # Temporal Video Analyzer (TVA)
 
-[![CI](https://github.com/YOUR_USER/tva/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USER/tva/actions/workflows/ci.yml)
-[![Release](https://github.com/YOUR_USER/tva/actions/workflows/release.yml/badge.svg)](https://github.com/YOUR_USER/tva/actions/workflows/release.yml)
+[![CI](https://github.com/tayuLuc/tva/actions/workflows/ci.yml/badge.svg)](https://github.com/tayuLuc/tva/actions/workflows/ci.yml)
+[![Release](https://github.com/tayuLuc/tva/actions/workflows/release.yml/badge.svg)](https://github.com/tayuLuc/tva/actions/workflows/release.yml)
 [![Crates.io](https://img.shields.io/crates/v/tva-core)](https://crates.io/crates/tva-core)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![MSRV](https://img.shields.io/badge/rustc-1.88%2B-lightgrey)](Cargo.toml)
@@ -14,7 +14,7 @@ Analyze video files for FPS drops, duplicate frames, screen tears, and frametime
 cargo install tva-cli
 ```
 
-Or download a pre-built binary from [releases](https://github.com/YOUR_USER/tva/releases).
+Or download a pre-built binary from [releases](https://github.com/tayuLuc/tva/releases).
 
 ## Usage
 
@@ -63,9 +63,9 @@ tva-web           GitHub Pages demo (separate repo)
 
 | Repo | Description |
 |------|-------------|
-| [tva](https://github.com/YOUR_USER/tva) | Core + CLI + FFI + WASM (this repo) |
-| [tva-gui](https://github.com/YOUR_USER/tva-gui) | Tauri desktop GUI |
-| [tva-web](https://github.com/YOUR_USER/tva-web) | GitHub Pages demo |
+| [tva](https://github.com/tayuLuc/tva) | Core + CLI + FFI + WASM (this repo) |
+| [tva-gui](https://github.com/tayuLuc/tva-gui) | Tauri desktop GUI |
+| [tva-web](https://github.com/tayuLuc/tva-web) | GitHub Pages demo |
 
 ## License
 

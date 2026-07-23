@@ -6,8 +6,8 @@ rust-version = "1.88"
 license = "MIT"
 authors = ["TVA Contributors"]
 description = "Core video analysis engine — FPS, duplicates, tears, frametime metrics"
-homepage = "https://github.com/YOUR_USER/tva"
-repository = "https://github.com/YOUR_USER/tva"
+homepage = "https://github.com/tayuLuc/tva"
+repository = "https://github.com/tayuLuc/tva"
 keywords = ["video", "analysis", "fps", "duplicate", "tear"]
 categories = ["multimedia::video", "science::robotics"]
 

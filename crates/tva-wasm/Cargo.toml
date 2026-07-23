@@ -5,8 +5,8 @@ edition = "2021"
 license = "MIT"
 authors = ["TVA Contributors"]
 description = "WASM bindings for tva-core"
-homepage = "https://github.com/YOUR_USER/tva"
-repository = "https://github.com/YOUR_USER/tva"
+homepage = "https://github.com/tayuLuc/tva"
+repository = "https://github.com/tayuLuc/tva"
 keywords = ["video", "analysis", "wasm"]
 categories = ["wasm", "multimedia::video"]
 
