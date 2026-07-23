@@ -1,6 +1,7 @@
 [advisories]
-severity = "deny"
+vulnerability = "deny"
 unmaintained = "allow"
+yanked = "deny"
 
 [licenses]
 allow = [
