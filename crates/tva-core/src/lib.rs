@@ -26,3 +26,5 @@ pub use resolution::ResolutionResult;
 pub use traits::{FrameComparator, FrameDecoder, Smoother};
 
 pub use adapters::identity_smoother::IdentitySmoother;
+
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
