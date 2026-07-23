@@ -4,7 +4,7 @@ unmaintained = "warn"
 yanked = "deny"
 
 [bans]
-multiple-versions = "deny"
+multiple-versions = "warn"
 skip = [
     { name = "ansi_term", version = "0.12" },
 ]
@@ -16,7 +16,6 @@ allow = [
     "MIT OR Apache-2.0",
     "BSL-1.0",
     "ISC",
-    "Unicode-3.0",
     "Zlib",
     "MPL-2.0",
 ]

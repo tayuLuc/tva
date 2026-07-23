@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::error::{Result, TvaError};
 use crate::frame::Frame;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct ResolutionResult {
     pub cutoff_x: u32,
     pub cutoff_y: u32,
@@ -31,16 +31,16 @@ where
         (0.2126 * f64::from(c[0]) + 0.7152 * f64::from(c[1]) + 0.0722 * f64::from(c[2])) / 255.0
     }).collect();
 
-    // Invoke FFT — caller provides implementation
-    let magnitude = fft_2d(&gray, w, h)?;
+    // Invoke FFT — caller provides implementation (returns fftshifted 2D)
+    let magnitude: Vec<Vec<f64>> = fft_2d(&gray, w, h)?;
 
     let cx = w / 2; let cy = h / 2;
     let max_r = cx.max(cy);
     let mut radial_power = vec![0.0f64; max_r]; let mut radial_count = vec![0u64; max_r];
 
-    for y in 0..h { for x in 0..w {
-        let r = (((x as i64 - cx as i64).pow(2) + (y as i64 - cy as i64).pow(2)) as f64).sqrt() as usize;
-        if r < max_r { radial_power[r] += magnitude[y * w + x]; radial_count[r] += 1; }
+    for sy in 0..h { for sx in 0..w {
+        let r = (((sx as i64 - cx as i64).pow(2) + (sy as i64 - cy as i64).pow(2)) as f64).sqrt() as usize;
+        if r < max_r { radial_power[r] += magnitude[sy][sx]; radial_count[r] += 1; }
     }}
     for (p, c) in radial_power.iter_mut().zip(&radial_count) { if *c > 0 { *p /= *c as f64; } }
 

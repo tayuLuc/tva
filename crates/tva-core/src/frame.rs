@@ -10,7 +10,7 @@ pub struct Frame {
 }
 
 /// Метаданные видео.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct VideoMeta {
     pub fps: f64,
     pub width: u32,

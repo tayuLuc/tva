@@ -25,7 +25,7 @@
 
 ### Architecture
 
-```
+```text
 tva-core          → core library (traits + pipeline, no external deps)
 ├── traits/       → FrameComparator, Smoother, FrameDecoder
 ├── adapters/     → feature-gated wrappers (image-compare, savgol, dssim, video-rs)

@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct FrameMetric {
     pub container_frame: u64,
     pub unique_frame: u64,
@@ -9,7 +9,7 @@ pub struct FrameMetric {
     pub instantaneous_fps: f64,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
 pub struct SummaryMetrics {
     pub avg_fps: f64,
     pub fps_1_low: f64,

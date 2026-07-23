@@ -6,7 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![MSRV](https://img.shields.io/badge/rustc-1.88%2B-lightgrey)](Cargo.toml)
 
-Analyze video files for FPS drops, duplicate frames, screen tears, and frametime jitter. Headless core + CLI + WASM + C FFI.
+Analyze video files for FPS drops, duplicate frames, screen tears, and
+frametime jitter. Headless core + CLI + WASM + C FFI.
 
 ## Install
 
@@ -34,7 +35,7 @@ tva analyze ./clips/*.mp4 --format csv > report.csv
 
 ## Architecture
 
-```
+```text
 tva-core          core library (traits + pipeline)
 ├── traits        FrameComparator, Smoother, FrameDecoder
 ├── adapters      feature-gated (image-compare, dssim, savgol, video-rs)
@@ -52,7 +53,7 @@ tva-web           GitHub Pages demo (separate repo)
 ## Features
 
 | Feature | Flag | Description |
-|---------|------|-------------|
+| ------- | ---- | ----------- |
 | SSIM/MSSIM/Hybrid compare | `compare-image` | image-compare adapter (default) |
 | Multi-core DSSIM | `compare-dssim` | dssim-core adapter |
 | Savitzky-Golay smoothing | `smooth-savgol` | staged-sg-filter, SIMD |
@@ -62,7 +63,7 @@ tva-web           GitHub Pages demo (separate repo)
 ## Components
 
 | Repo | Description |
-|------|-------------|
+| ---- | ----------- |
 | [tva](https://github.com/tayuLuc/tva) | Core + CLI + FFI + WASM (this repo) |
 | [tva-gui](https://github.com/tayuLuc/tva-gui) | Tauri desktop GUI |
 | [tva-web](https://github.com/tayuLuc/tva-web) | GitHub Pages demo |

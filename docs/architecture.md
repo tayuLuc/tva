@@ -2,7 +2,7 @@
 
 ## Layers
 
-```
+```text
 ┌─────────────────────────────────────────────────┐
 │                  Interfaces                      │
 │  ┌─────┐  ┌──────┐  ┌─────┐  ┌──────────────┐  │
@@ -25,7 +25,7 @@
 
 ## Data flow
 
-```
+```text
 [Video file] → FFmpeg → Vec<Frame> → Analyzer → Report → JSON/CSV/Overlay
 ```
 
