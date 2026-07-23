@@ -5,7 +5,9 @@ use crate::events::{AnalysisEvent, EventSink};
 use crate::frame::Frame;
 use crate::metrics::{compute_frame_metrics, compute_summary};
 use crate::report::Report;
-use crate::resolution::{detect_resolution, ResolutionResult};
+#[cfg(feature = "fft")]
+use crate::resolution::detect_resolution;
+use crate::resolution::ResolutionResult;
 use crate::traits::{FrameComparator, FrameDecoder, Smoother};
 
 pub fn analyze(
