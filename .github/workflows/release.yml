@@ -58,7 +58,7 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    if: github.repository_owner == 'YOUR_USER'
+    if: github.repository_owner == 'tayuLuc'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
