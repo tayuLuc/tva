@@ -2,18 +2,13 @@ use crate::error::{Result, TvaError};
 use crate::frame::Frame;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum UpscaleVerdict {
     Native,
     LikelyUpscaled,
+    #[default]
     Uncertain,
-}
-
-impl Default for UpscaleVerdict {
-    fn default() -> Self {
-        Self::Uncertain
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

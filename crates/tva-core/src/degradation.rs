@@ -1,7 +1,6 @@
 use crate::error::Result;
 use crate::events::{AnalysisEvent, EventSink};
-use crate::frame::{Frame, VideoMeta};
-use crate::pixel_buffer::PixelBuffer;
+use crate::frame::VideoMeta;
 use crate::traits::{FrameComparator, FrameDecoder};
 use serde::{Deserialize, Serialize};
 
@@ -147,7 +146,7 @@ pub fn compare_sources(
             fb = b.next_frame();
         }
     }
-    while let Some(_) = fa {
+    while fa.is_some() {
         dropped += 1;
         fa = a.next_frame();
     }
@@ -190,6 +189,8 @@ fn empty_summary() -> DegradationSummary {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::frame::Frame;
+    use crate::pixel_buffer::PixelBuffer;
     use crate::pixel_buffer::PixelBuffer;
 
     struct VecSource {
