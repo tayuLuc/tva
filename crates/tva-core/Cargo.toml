@@ -28,6 +28,9 @@ staged-sg-filter = { version = "0.2", optional = true }
 rustfft = { version = "6.2", optional = true }
 video-rs = { version = "0.10", optional = true }
 
+[lints.clippy]
+module_name_repetitions = "allow"
+
 [features]
 default = []
 compare-image = ["dep:image", "dep:image-compare"]
