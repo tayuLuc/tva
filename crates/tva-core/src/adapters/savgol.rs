@@ -1,6 +1,6 @@
 use crate::error::{Result, TvaError};
 use crate::traits::Smoother;
-use staged_sg_filter::sav_gol;
+use savgol_rs::{savgol_filter, SavGolInput};
 
 pub struct SavgolSmoother {
     pub window: usize,
@@ -22,9 +22,13 @@ impl Smoother for SavgolSmoother {
                 format!("window {} exceeds data length {}", self.window, data.len()),
             ));
         }
-        let mut buf = data.to_vec();
-        sav_gol(&mut buf, self.window, self.polyorder)
-            .map_err(|e| TvaError::SmoothingFailed(e.to_string()))?;
-        Ok(buf)
+        let w = if self.window % 2 == 0 { self.window + 1 } else { self.window };
+        let input = SavGolInput {
+            data,
+            window_length: w,
+            poly_order: self.polyorder,
+            derivative: 0,
+        };
+        savgol_filter(&input).map_err(TvaError::SmoothingFailed)
     }
 }

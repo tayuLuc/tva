@@ -25,7 +25,7 @@ image = { version = "0.25", optional = true }
 image-compare = { version = "0.5", optional = true }
 rgb = "0.8"
 dssim-core = { version = "3.4", optional = true }
-staged-sg-filter = { version = "0.2", optional = true }
+savgol-rs = { version = "0.1", optional = true }
 rustfft = { version = "6.2", optional = true }
 video-rs = { version = "0.10", optional = true }
 
@@ -38,6 +38,6 @@ needless_range_loop = "allow"
 default = []
 compare-image = ["dep:image", "dep:image-compare"]
 compare-dssim = ["dep:image", "dep:dssim-core"]
-smooth-savgol = ["dep:staged-sg-filter"]
+smooth-savgol = ["dep:savgol-rs"]
 decode-ffmpeg = ["dep:video-rs"]
 fft = ["dep:rustfft"]
