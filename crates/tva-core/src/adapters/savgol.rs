@@ -26,7 +26,7 @@ impl Smoother for SavgolSmoother {
                 data.len()
             )));
         }
-        let w = if self.window % 2 == 0 { self.window + 1 } else { self.window };
+        let w = if self.window.is_multiple_of(2) { self.window + 1 } else { self.window };
         let input = SavGolInput { data, window_length: w, poly_order: self.polyorder, derivative: 0 };
         savgol_filter(&input).map_err(TvaError::SmoothingFailed)
     }

@@ -5,10 +5,13 @@ edition = "2021"
 license = "MIT"
 description = "CLI for Temporal Video Analyzer"
 
+[features]
+default = ["smooth-savgol"]
+smooth-savgol = ["tva-core/smooth-savgol"]
+
 [dependencies]
 tva-core = { path = "../tva-core", features = [
     "compare-image",
-    "smooth-savgol",
     "decode-images",
 ] }
 clap = { version = "4", features = ["derive"] }

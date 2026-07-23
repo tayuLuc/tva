@@ -28,6 +28,9 @@ pub enum TvaError {
 
     #[error("csv error: {0}")]
     Csv(String),
+
+    #[error("unknown metric `{0}` (expected ssim, hybrid)")]
+    UnknownMetric(String),
 }
 
 impl From<serde_json::Error> for TvaError {

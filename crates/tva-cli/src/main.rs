@@ -2,10 +2,8 @@
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use tva_core::{
-    adapters::identity_smoother::IdentitySmoother, adapters::image_compare::SsimComparator, config::PipelineConfig,
-    events::NullSink, pipeline, traits::Smoother, Report,
-};
+use tva_core::adapters::image_compare::metric_by_name;
+use tva_core::{config::PipelineConfig, events::NullSink, pipeline, traits::Smoother, Report};
 
 #[derive(Parser)]
 #[command(name = "tva", version, about = "Temporal Video Analyzer")]
@@ -24,8 +22,13 @@ enum Command {
         output: Option<PathBuf>,
         #[arg(long)]
         fps: Option<f64>,
-        #[arg(long, default_value_t = 0.98)]
-        threshold: f64,
+        /// Comparison metric: ssim, hybrid
+        #[arg(long, default_value = "ssim")]
+        metric: String,
+        /// Duplicate threshold in the metric's native scale.
+        /// If omitted, the metric's own default is used.
+        #[arg(long)]
+        threshold: Option<f64>,
         #[arg(long)]
         no_tears: bool,
     },
@@ -41,7 +44,7 @@ fn main() {
 
 fn run(cli: Cli) -> tva_core::Result<()> {
     match cli.command {
-        Command::Analyze { input, format, output, fps, threshold, no_tears } => {
+        Command::Analyze { input, format, output, fps, metric, threshold, no_tears } => {
             let mut decoder: Box<dyn tva_core::traits::FrameDecoder> = if input.is_dir() {
                 Box::new(tva_core::adapters::image_seq::ImageSeqDecoder::open(&input, fps)?)
             } else {
@@ -50,20 +53,21 @@ fn run(cli: Cli) -> tva_core::Result<()> {
                 ));
             };
 
-            let comparator = SsimComparator;
+            let spec = metric_by_name(&metric)?;
+            let dup_threshold = threshold.unwrap_or(spec.default_threshold);
 
             #[cfg(feature = "smooth-savgol")]
             let smoother: Box<dyn Smoother> =
                 Box::new(tva_core::adapters::savgol::SavgolSmoother { window: 21, polyorder: 3 });
             #[cfg(not(feature = "smooth-savgol"))]
-            let smoother: Box<dyn Smoother> = Box::new(IdentitySmoother);
+            let smoother: Box<dyn Smoother> = Box::new(tva_core::adapters::identity_smoother::IdentitySmoother);
 
             let config =
-                PipelineConfig { duplicate_threshold: threshold, detect_tears: !no_tears, ..Default::default() };
+                PipelineConfig { duplicate_threshold: dup_threshold, detect_tears: !no_tears, ..Default::default() };
 
             let mut sink = NullSink;
             let report: Report =
-                pipeline::analyze(decoder.as_mut(), &config, &comparator, smoother.as_ref(), &mut sink)?;
+                pipeline::analyze(decoder.as_mut(), &config, spec.comparator.as_ref(), smoother.as_ref(), &mut sink)?;
 
             match format.as_str() {
                 "json" => {
