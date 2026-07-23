@@ -59,6 +59,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo check -p tva-wasm --target wasm32-unknown-unknown
       - run: cargo build -p tva-ffi
+      - run: cargo check -p tva-cli
+      - run: cargo check -p tva-core --features compare-image,smooth-savgol,fft
 
   # ── MegaLinter: YAML, Markdown, JSON, TOML, Dockerfile, Secrets ──
   megalinter:
