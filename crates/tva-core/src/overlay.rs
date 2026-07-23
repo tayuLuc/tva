@@ -1,7 +1,7 @@
-//! Render FPS/frametime graph overlay onto video frames.
+//! Render FPS/frametime graph overlay onto video.
 
 use crate::error::Result;
-use crate::pipeline::Report;
+use crate::report::Report;
 use std::path::Path;
 
 /// Render overlay video with FPS graph.

@@ -1,6 +1,7 @@
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct FrameMetric {
-    /// Index of the first container frame in this streak.
     pub container_frame: u64,
     pub unique_frame: u64,
     pub streak_length: u32,
@@ -8,7 +9,7 @@ pub struct FrameMetric {
     pub instantaneous_fps: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SummaryMetrics {
     pub avg_fps: f64,
     pub fps_1_low: f64,
@@ -57,17 +58,16 @@ pub fn compute_summary(metrics: &[FrameMetric], tear_count: u64) -> SummaryMetri
     }
 
     let mut fps_sorted: Vec<f64> = metrics.iter().map(|m| m.instantaneous_fps).collect();
-    fps_sorted.sort_by(|a, b| a.total_cmp(b));
+    fps_sorted.sort_by(f64::total_cmp);
 
     let pct_1 = ((n as f64 * 0.01).ceil() as usize).max(1);
     let pct_01 = ((n as f64 * 0.001).ceil() as usize).max(1);
 
-    // ponytail: as f64, not f64::from(x as u32) — truncation-safe on 64-bit
     let fps_1_low = fps_sorted[..pct_1].iter().sum::<f64>() / pct_1 as f64;
     let fps_01_low = fps_sorted[..pct_01].iter().sum::<f64>() / pct_01 as f64;
 
     let mut ft_sorted: Vec<f64> = metrics.iter().map(|m| m.real_frame_time_ms).collect();
-    ft_sorted.sort_by(|a, b| a.total_cmp(b));
+    ft_sorted.sort_by(f64::total_cmp);
 
     let p90_idx = ((n as f64 * 0.90).ceil() as usize).min(n).saturating_sub(1);
     let p99_idx = ((n as f64 * 0.99).ceil() as usize).min(n).saturating_sub(1);
@@ -85,5 +85,38 @@ pub fn compute_summary(metrics: &[FrameMetric], tear_count: u64) -> SummaryMetri
         total_unique_frames: n as u64,
         duplicate_count: total_container - n as u64,
         tear_count,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_metrics_are_zero() {
+        let s = compute_summary(&[], 0);
+        assert_eq!(s.avg_fps, 0.0);
+        assert_eq!(s.tear_count, 0);
+    }
+
+    #[test]
+    fn metrics_1_percent_low() {
+        // 100 unique frames: 99 at 60fps, 1 at 10fps (streak=6)
+        let mut streaks = vec![1u32; 99];
+        streaks.push(6);
+        let m = compute_frame_metrics(&streaks, 60.0);
+        let s = compute_summary(&m, 0);
+        assert!(s.fps_1_low < 15.0); // 1% low catches the 10fps outlier
+        assert!(s.avg_fps > 50.0);
+        assert_eq!(s.duplicate_count, 5); // one streak of 6 = 5 extra
+    }
+
+    #[test]
+    fn frame_metrics_length() {
+        let streaks = vec![1, 2, 1, 3];
+        let m = compute_frame_metrics(&streaks, 60.0);
+        assert_eq!(m.len(), 4);
+        assert_eq!(m[0].instantaneous_fps, 60.0);
+        assert_eq!(m[1].instantaneous_fps, 30.0);
     }
 }

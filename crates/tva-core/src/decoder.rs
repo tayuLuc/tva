@@ -1,13 +1,11 @@
-//! Decode video files into raw RGB8 frame data via ffmpeg-next.
+//! FFmpeg decoder — reads video frames into `Frame`.
 
 use crate::error::{Result, TvaError};
-use crate::pipeline::VideoMeta;
-use rgb::RGB8;
+use crate::frame::{Frame, VideoMeta};
 use std::path::Path;
 
-/// Decode a video file into RGB8 frames + metadata.
+/// Decode a video file into frames + metadata.
 /// ponytail: stub — ffmpeg-next decode loop when implemented.
-pub fn decode_file(path: &Path) -> Result<(Vec<Vec<RGB8>>, VideoMeta)> {
-    let _ = path;
+pub fn decode_file(_path: &Path) -> Result<(Vec<Frame>, VideoMeta)> {
     Err(TvaError::Decode("not implemented yet".into()))
 }

@@ -1,7 +1,5 @@
-//! Export analysis results to JSON and CSV.
-
 use crate::error::Result;
-use crate::pipeline::Report;
+use crate::report::Report;
 use std::path::Path;
 
 /// Serialize report as pretty JSON.
@@ -12,10 +10,7 @@ pub fn to_json(report: &Report) -> Result<String> {
 /// Write per-frame metrics to CSV.
 pub fn to_csv(report: &Report, out: &Path) -> Result<()> {
     let mut wtr = csv::Writer::from_path(out)?;
-    wtr.write_record(&[
-        "container_frame", "unique_frame", "streak_length",
-        "real_frame_time_ms", "instantaneous_fps",
-    ])?;
+    wtr.write_record(&["container_frame", "unique_frame", "streak_length", "real_frame_time_ms", "instantaneous_fps"])?;
     for f in &report.frames {
         wtr.write_record(&[
             f.container_frame.to_string(),

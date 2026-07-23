@@ -1,18 +1,27 @@
 pub mod compare;
+pub mod config;
+pub mod decoder;
 pub mod detect;
 pub mod error;
-pub mod metrics;
-pub mod resolution;
-pub mod smooth;
-
-pub mod decoder;
+pub mod events;
 pub mod export;
+pub mod ffi;
+pub mod frame;
+pub mod metrics;
 pub mod overlay;
 pub mod pipeline;
-pub mod ffi;
+pub mod report;
+pub mod resolution;
+pub mod smooth;
+pub mod source;
 
-pub use compare::{CompareMethod, CompareResult};
+pub use compare::{CompareMethod, CompareResult, compare_frames};
+pub use config::PipelineConfig;
 pub use detect::{DedupState, DuplicateInfo, TearInfo};
 pub use error::{Result, TvaError};
+pub use events::{AnalysisEvent, EventSink, NullSink};
+pub use frame::{Frame, VideoMeta};
 pub use metrics::{FrameMetric, SummaryMetrics};
+pub use report::Report;
 pub use resolution::ResolutionResult;
+pub use source::FrameSource;

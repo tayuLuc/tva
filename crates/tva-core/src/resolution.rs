@@ -1,9 +1,11 @@
 use crate::error::{Result, TvaError};
-use rgb::RGB8;
+use crate::frame::Frame;
 use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
 
-#[derive(Debug, Clone)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ResolutionResult {
     pub cutoff_x: u32,
     pub cutoff_y: u32,
@@ -11,22 +13,23 @@ pub struct ResolutionResult {
 }
 
 const STANDARD_RESOLUTIONS: [(u32, u32); 6] = [
-    (640, 360),
-    (1280, 720),
-    (1440, 810),
-    (1560, 873),
-    (1600, 900),
-    (1920, 1080),
+    (640, 360), (1280, 720), (1440, 810),
+    (1560, 873), (1600, 900), (1920, 1080),
 ];
 
-/// Detect native resolution from a grayscale frame via 2D FFT.
-pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Result<ResolutionResult> {
-    if gray.len() != width * height {
-        return Err(TvaError::SizeMismatch { expected: width * height, got: gray.len() });
-    }
+/// Detect native resolution from a frame via 2D FFT.
+pub fn detect_resolution(frame: &Frame) -> Result<ResolutionResult> {
+    let width = frame.width as usize;
+    let height = frame.height as usize;
+
     if width < 4 || height < 4 {
         return Err(TvaError::FftFailed("frame too small".into()));
     }
+
+    // Grayscale from Rec. 709 luminance
+    let gray: Vec<f64> = frame.data.iter().map(|p| {
+        (0.2126 * f64::from(p.r) + 0.7152 * f64::from(p.g) + 0.0722 * f64::from(p.b)) / 255.0
+    }).collect();
 
     let mut planner = FftPlanner::<f64>::new();
     let fft_h = planner.plan_fft_forward(width);
@@ -61,12 +64,9 @@ pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Result<Re
 
     for y in 0..height {
         for x in 0..width {
-            let sx = (x + cx) % width;
-            let sy = (y + cy) % height;
+            let (sx, sy) = ((x + cx) % width, (y + cy) % height);
             let mag = spectrum[sy * width + sx].norm();
-            let dx = x as i64 - cx as i64;
-            let dy = y as i64 - cy as i64;
-            let r = ((dx * dx + dy * dy) as f64).sqrt() as usize;
+            let r = (((x as i64 - cx as i64).pow(2) + (y as i64 - cy as i64).pow(2)) as f64).sqrt() as usize;
             if r < max_r {
                 radial_power[r] += mag;
                 radial_count[r] += 1;
@@ -74,37 +74,28 @@ pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Result<Re
         }
     }
 
-    for (power, count) in radial_power.iter_mut().zip(&radial_count) {
-        if *count > 0 {
-            *power /= *count as f64;
-        }
+    for (p, c) in radial_power.iter_mut().zip(&radial_count) {
+        if *c > 0 { *p /= *c as f64; }
     }
 
     let peak = radial_power.iter().skip(1).cloned().fold(0.0f64, f64::max);
     if peak == 0.0 {
         return Ok(ResolutionResult {
-            cutoff_x: width as u32,
-            cutoff_y: height as u32,
+            cutoff_x: width as u32, cutoff_y: height as u32,
             estimated_native: (width as u32, height as u32),
         });
     }
 
-    let cutoff_r = radial_power
-        .iter()
-        .skip(1)
+    let cutoff_r = radial_power.iter().skip(1)
         .position(|&p| p < peak * 0.01)
-        .unwrap_or(max_r - 1)
-        + 1;
+        .unwrap_or(max_r - 1) + 1;
 
     let cutoff_x = (cutoff_r as f64 / cx as f64 * width as f64 / 2.0) as u32 * 2;
     let cutoff_y = (cutoff_r as f64 / cy as f64 * height as f64 / 2.0) as u32 * 2;
 
-    let estimated = STANDARD_RESOLUTIONS
-        .iter()
+    let estimated = STANDARD_RESOLUTIONS.iter()
         .min_by_key(|&&(w, h)| {
-            let dw = i64::from(w) - i64::from(cutoff_x);
-            let dh = i64::from(h) - i64::from(cutoff_y);
-            dw.abs() + dh.abs()
+            (i64::from(w) - i64::from(cutoff_x)).abs() + (i64::from(h) - i64::from(cutoff_y)).abs()
         })
         .copied()
         .unwrap_or((width as u32, height as u32));
@@ -112,10 +103,22 @@ pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Result<Re
     Ok(ResolutionResult { cutoff_x, cutoff_y, estimated_native: estimated })
 }
 
-/// Convert RGB8 to grayscale [0.0, 1.0] (Rec. 709 luminance).
-#[must_use]
-pub fn rgb_to_gray(pixels: &[RGB8]) -> Vec<f64> {
-    pixels.iter().map(|p| {
-        (0.2126 * f64::from(p.r) + 0.7152 * f64::from(p.g) + 0.0722 * f64::from(p.b)) / 255.0
-    }).collect()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::frame::Frame;
+    use rgb::RGB8;
+
+    #[test]
+    fn tiny_frame_errors() {
+        let f = Frame { data: vec![RGB8::new(0, 0, 0); 4], width: 2, height: 2, index: 0, timestamp_ms: 0.0 };
+        assert!(detect_resolution(&f).is_err());
+    }
+
+    #[test]
+    fn uniform_frame_ok() {
+        let f = Frame { data: vec![RGB8::new(128, 128, 128); 1920*1080], width: 1920, height: 1080, index: 0, timestamp_ms: 0.0 };
+        let r = detect_resolution(&f).unwrap();
+        assert_eq!(r.estimated_native, (1920, 1080));
+    }
 }

@@ -1,49 +1,36 @@
-//! C FFI entry points for embedding (Python, Node, C++, etc.).
-//! ponytail: wraps pipeline::analyze with a no-frame source stub.
+//! C FFI entry points for embedding (Python, Node, C++).
+//! ponytail: stub — no-op source.
 
-use crate::pipeline::{self, FrameSource, VideoMeta, PipelineConfig, NullSink};
+use crate::config::PipelineConfig;
+use crate::events::NullSink;
+use crate::frame::{Frame, VideoMeta};
+use crate::pipeline;
+use crate::source::FrameSource;
 use rgb::RGB8;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 struct StubSource;
+
 impl FrameSource for StubSource {
     fn metadata(&self) -> VideoMeta {
-        VideoMeta { width: 0, height: 0, fps: 0.0, total_frames: 0, codec: String::new() }
+        VideoMeta { fps: 0.0, width: 0, height: 0, total_frames: 0, duration_ms: 0.0, codec: String::new() }
     }
-    fn next_frame(&mut self) -> Option<Vec<RGB8>> {
+    fn next_frame(&mut self) -> Option<Frame> {
         None
     }
 }
 
-/// Analyze and return JSON. Caller must free with `tva_free_string`.
 #[no_mangle]
 pub extern "C" fn tva_analyze(path: *const c_char) -> *mut c_char {
-    let c_str = unsafe { CStr::from_ptr(path) };
-    let path_str = match c_str.to_str() {
-        Ok(s) => s,
-        Err(_) => return make_error("invalid UTF-8 path"),
-    };
-    let _ = path_str;
-    let mut source = StubSource;
-    let config = PipelineConfig::default();
-    let mut sink = NullSink;
-    match pipeline::analyze(&mut source, &config, &mut sink) {
-        Ok(report) => {
-            let json = serde_json::to_string(&report).unwrap();
-            CString::new(json).unwrap().into_raw()
-        }
-        Err(e) => make_error(&e.to_string()),
+    let _ = unsafe { CStr::from_ptr(path) };
+    match pipeline::analyze(&mut StubSource, &PipelineConfig::default(), &mut NullSink) {
+        Ok(r) => CString::new(serde_json::to_string(&r).unwrap()).unwrap().into_raw(),
+        Err(e) => CString::new(format!(r#"{{"error":"{}"}}"#, e)).unwrap().into_raw(),
     }
 }
 
 #[no_mangle]
 pub extern "C" fn tva_free_string(s: *mut c_char) {
-    if !s.is_null() {
-        unsafe { drop(CString::from_raw(s)); }
-    }
-}
-
-fn make_error(msg: &str) -> *mut c_char {
-    CString::new(format!(r#"{{"error":"{}"}}"#, msg)).unwrap().into_raw()
+    if !s.is_null() { unsafe { drop(CString::from_raw(s)); } }
 }
