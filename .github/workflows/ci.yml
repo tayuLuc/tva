@@ -41,6 +41,13 @@ jobs:
       - run: cargo test -p tva-core --lib
       - run: cargo test -p tva-core --doc
 
+  deny:
+    name: Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
   targets:
     name: Targets
     runs-on: ubuntu-latest
