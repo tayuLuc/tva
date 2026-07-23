@@ -31,6 +31,9 @@ pub enum TvaError {
 
     #[error("unknown metric `{0}` (expected ssim, hybrid, mad)")]
     UnknownMetric(String),
+
+    #[error("bad --to value `{0}` (expected height like 480/480p, or WxH like 854x480)")]
+    BadScale(String),
 }
 
 impl From<serde_json::Error> for TvaError {

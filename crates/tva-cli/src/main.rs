@@ -2,8 +2,16 @@
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
-use tva_core::adapters::image_compare::metric_by_name;
-use tva_core::{config::PipelineConfig, events::NullSink, pipeline, traits::Smoother, Report};
+use std::process::Command as SystemCommand;
+use tva_core::adapters::{image_compare::metric_by_name, image_seq::ImageSeqDecoder};
+use tva_core::{
+    config::PipelineConfig,
+    degradation::{compare_sources, DegradationConfig},
+    events::NullSink,
+    pipeline,
+    traits::{FrameDecoder, Smoother},
+    Report,
+};
 
 #[derive(Parser)]
 #[command(name = "tva", version, about = "Temporal Video Analyzer")]
@@ -31,6 +39,41 @@ enum Command {
         threshold: Option<f64>,
         #[arg(long)]
         no_tears: bool,
+    },
+
+    /// Compare two versions of the same video (e.g. before/after re-encoding)
+    Compare {
+        /// Source A: directory of frames (original)
+        a: PathBuf,
+        /// Source B: directory of frames (compressed / re-encoded)
+        b: PathBuf,
+        /// Comparison metric: ssim, hybrid, mad
+        #[arg(long, default_value = "ssim")]
+        metric: String,
+        /// Max timestamp drift for frame matching, ms (VFR sources: raise this)
+        #[arg(long)]
+        drift_ms: Option<f64>,
+        /// Output file (default: stdout)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Downscale a video to its native resolution (calls external ffmpeg)
+    Descale {
+        /// Input video file
+        input: PathBuf,
+        /// Target: height (480, 480p, 720p) or exact WxH (854x480)
+        #[arg(long)]
+        to: String,
+        /// Output file
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Video codec
+        #[arg(long, default_value = "libx264")]
+        codec: String,
+        /// Constant rate factor (lower = higher quality)
+        #[arg(long, default_value_t = 18)]
+        crf: u8,
     },
 }
 
@@ -119,6 +162,73 @@ fn run(cli: Cli) -> tva_core::Result<()> {
 
             Ok(())
         }
+        Command::Compare { a, b, metric, drift_ms, output } => {
+            if !a.is_dir() || !b.is_dir() {
+                return Err(tva_core::TvaError::Decode(
+                    "compare needs two frame directories (video files require decode-ffmpeg)".into(),
+                ));
+            }
+
+            let spec = metric_by_name(&metric)?;
+            let mut dec_a: Box<dyn FrameDecoder> = Box::new(ImageSeqDecoder::open(&a, None)?);
+            let mut dec_b: Box<dyn FrameDecoder> = Box::new(ImageSeqDecoder::open(&b, None)?);
+
+            let cfg = match drift_ms {
+                Some(d) => DegradationConfig { max_time_drift_ms: d },
+                None => DegradationConfig::default(),
+            };
+
+            let mut sink = NullSink;
+            let report = compare_sources(dec_a.as_mut(), dec_b.as_mut(), spec.comparator.as_ref(), &cfg, &mut sink)?;
+
+            let json = serde_json::to_string_pretty(&report)?;
+            write_output(&output, &json)?;
+
+            let s = &report.summary;
+            if let Some(m) = &report.size_mismatch {
+                eprintln!(
+                    "warning: resolution mismatch {}x{} vs {}x{} — no pixel comparison performed",
+                    m.a.0, m.a.1, m.b.0, m.b.1
+                );
+            }
+            eprintln!(
+                "compared {} pairs ({} dropped) | mean similarity {:.3}, min {:.3}, quality drop {:.1}%",
+                s.pairs_compared, s.pairs_dropped, s.mean_similarity, s.min_similarity, s.quality_drop_pct,
+            );
+
+            Ok(())
+        }
+        Command::Descale { input, to, output, codec, crf } => {
+            if !input.is_file() {
+                return Err(tva_core::TvaError::Decode(format!("input not found: {}", input.display())));
+            }
+            let target = parse_target(&to)?;
+            let vf = scale_filter(target);
+
+            let status = SystemCommand::new("ffmpeg")
+                .arg("-y")
+                .arg("-i")
+                .arg(&input)
+                .arg("-vf")
+                .arg(&vf)
+                .arg("-c:v")
+                .arg(&codec)
+                .arg("-crf")
+                .arg(crf.to_string())
+                .arg("-c:a")
+                .arg("copy")
+                .arg(&output)
+                .status()
+                .map_err(|e| {
+                    tva_core::TvaError::Decode(format!("ffmpeg not found in PATH ({e}); install ffmpeg to use descale"))
+                })?;
+
+            if !status.success() {
+                return Err(tva_core::TvaError::Decode(format!("ffmpeg exited with {status}")));
+            }
+            eprintln!("descaled {} -> {} ({vf})", input.display(), output.display());
+            Ok(())
+        }
     }
 }
 
@@ -131,4 +241,64 @@ fn write_output(path: &Option<PathBuf>, content: &str) -> tva_core::Result<()> {
         None => print!("{content}"),
     }
     Ok(())
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ScaleTarget {
+    Both(u32, u32),
+    Height(u32),
+}
+
+fn parse_target(s: &str) -> tva_core::Result<ScaleTarget> {
+    let s = s.trim().trim_end_matches(|c| c == 'p' || c == 'P');
+    if s.is_empty() {
+        return Err(tva_core::TvaError::BadScale(String::new()));
+    }
+    if let Some((w, h)) = s.split_once(['x', 'X', ':']) {
+        let w = w.trim().parse::<u32>().map_err(|_| tva_core::TvaError::BadScale(s.into()))?;
+        let h = h.trim().parse::<u32>().map_err(|_| tva_core::TvaError::BadScale(s.into()))?;
+        Ok(ScaleTarget::Both(w, h))
+    } else {
+        let h = s.parse::<u32>().map_err(|_| tva_core::TvaError::BadScale(s.into()))?;
+        Ok(ScaleTarget::Height(h))
+    }
+}
+
+fn scale_filter(t: ScaleTarget) -> String {
+    match t {
+        ScaleTarget::Both(w, h) => format!("scale={w}:{h}:flags=lanczos"),
+        ScaleTarget::Height(h) => format!("scale=-2:{h}:flags=lanczos"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn height_only() {
+        assert!(matches!(parse_target("480").unwrap(), ScaleTarget::Height(480)));
+        assert!(matches!(parse_target("480p").unwrap(), ScaleTarget::Height(480)));
+        assert!(matches!(parse_target(" 720P ").unwrap(), ScaleTarget::Height(720)));
+    }
+
+    #[test]
+    fn both_separators() {
+        assert!(matches!(parse_target("854x480").unwrap(), ScaleTarget::Both(854, 480)));
+        assert!(matches!(parse_target("854X480").unwrap(), ScaleTarget::Both(854, 480)));
+        assert!(matches!(parse_target("854:480").unwrap(), ScaleTarget::Both(854, 480)));
+    }
+
+    #[test]
+    fn garbage_is_err() {
+        assert!(parse_target("foo").is_err());
+        assert!(parse_target("x480").is_err());
+        assert!(parse_target("").is_err());
+    }
+
+    #[test]
+    fn filter_strings() {
+        assert_eq!(scale_filter(ScaleTarget::Height(480)), "scale=-2:480:flags=lanczos");
+        assert_eq!(scale_filter(ScaleTarget::Both(854, 480)), "scale=854:480:flags=lanczos");
+    }
 }
