@@ -1,32 +1,28 @@
-//! Export analysis results to JSON, CSV, overlay video.
+//! Export analysis results to JSON and CSV.
 
+use crate::error::Result;
 use crate::pipeline::Report;
 use std::path::Path;
 
 /// Serialize report as pretty JSON.
-pub fn to_json(report: &Report) -> Result<String, Box<dyn std::error::Error>> {
+pub fn to_json(report: &Report) -> Result<String> {
     Ok(serde_json::to_string_pretty(report)?)
 }
 
 /// Write per-frame metrics to CSV.
-pub fn to_csv(report: &Report, out: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn to_csv(report: &Report, out: &Path) -> Result<()> {
     let mut wtr = csv::Writer::from_path(out)?;
     wtr.write_record(&[
-        "frame",
-        "pts_us",
-        "delta_us",
-        "duplicate",
-        "tear_line",
-        "delta_cielab",
+        "container_frame", "unique_frame", "streak_length",
+        "real_frame_time_ms", "instantaneous_fps",
     ])?;
     for f in &report.frames {
         wtr.write_record(&[
-            f.frame_num.to_string(),
-            f.pts_us.to_string(),
-            f.delta_us.to_string(),
-            f.duplicate.to_string(),
-            f.tear_line.map(|t| t.to_string()).unwrap_or_default(),
-            format!("{:.6}", f.delta_cielab),
+            f.container_frame.to_string(),
+            f.unique_frame.to_string(),
+            f.streak_length.to_string(),
+            format!("{:.4}", f.real_frame_time_ms),
+            format!("{:.4}", f.instantaneous_fps),
         ])?;
     }
     wtr.flush()?;

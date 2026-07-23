@@ -1,16 +1,13 @@
-//! Decode video files into raw frame data using ffmpeg-next.
-//! HW acceleration (NVDEC/VAAPI/VideoToolbox) auto-detected.
+//! Decode video files into raw RGB8 frame data via ffmpeg-next.
 
-use crate::pipeline::{FrameData, VideoMeta};
+use crate::error::{Result, TvaError};
+use crate::pipeline::VideoMeta;
+use rgb::RGB8;
 use std::path::Path;
 
-/// Decode a video file into a vector of raw RGB frame data.
-/// ponytail: software decode only for now; HW accel is one flag away.
-pub fn decode_file(path: &Path) -> Result<(Vec<FrameData>, VideoMeta), Box<dyn std::error::Error>> {
-    // stub: ffmpeg-next decode loop goes here
+/// Decode a video file into RGB8 frames + metadata.
+/// ponytail: stub — ffmpeg-next decode loop when implemented.
+pub fn decode_file(path: &Path) -> Result<(Vec<Vec<RGB8>>, VideoMeta)> {
     let _ = path;
-    let meta = VideoMeta {
-        width: 0, height: 0, fps: 0.0, total_frames: 0, codec: String::new(),
-    };
-    Ok((Vec::new(), meta))
+    Err(TvaError::Decode("not implemented yet".into()))
 }

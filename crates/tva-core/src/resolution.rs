@@ -1,12 +1,9 @@
-//! Определение нативного разрешения видео через FFT-based cutoff.
-//! Берём яркостный канал, 2D FFT, радиальное усреднение,
-//! ищем частоту среза по порогу мощности, маппим на стандартные разрешения.
-
+use crate::error::{Result, TvaError};
+use rgb::RGB8;
+use rustfft::num_complex::Complex;
 use rustfft::FftPlanner;
-use num_complex::Complex;
 
-/// Результат определения разрешения.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct ResolutionResult {
     pub cutoff_x: u32,
     pub cutoff_y: u32,
@@ -22,41 +19,40 @@ const STANDARD_RESOLUTIONS: [(u32, u32); 6] = [
     (1920, 1080),
 ];
 
-/// Детектировать нативное разрешение из grayscale-кадра через 2D FFT.
-///
-/// 1. FFT по строкам, затем по столбцам.
-/// 2. Амплитудный спектр → радиальное усреднение → 1D профиль.
-/// 3. Частота среза: где мощность падает ниже 1% от пика.
-/// 4. Ближайшее стандартное разрешение.
-pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> ResolutionResult {
+/// Detect native resolution from a grayscale frame via 2D FFT.
+pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Result<ResolutionResult> {
+    if gray.len() != width * height {
+        return Err(TvaError::SizeMismatch { expected: width * height, got: gray.len() });
+    }
+    if width < 4 || height < 4 {
+        return Err(TvaError::FftFailed("frame too small".into()));
+    }
+
     let mut planner = FftPlanner::<f64>::new();
     let fft_h = planner.plan_fft_forward(width);
+    let mut spectrum: Vec<Complex<f64>> = vec![Complex::new(0.0, 0.0); width * height];
+    let mut row_buf: Vec<Complex<f64>> = vec![Complex::new(0.0, 0.0); width];
 
-    // 1. FFT по строкам
-    let mut spectrum = vec![Complex::new(0.0, 0.0); width * height];
     for y in 0..height {
-        let mut row: Vec<Complex<f64>> = (0..width)
-            .map(|x| Complex::new(gray[y * width + x], 0.0))
-            .collect();
-        fft_h.process(&mut row);
         for x in 0..width {
-            spectrum[y * width + x] = row[x];
+            row_buf[x] = Complex::new(gray[y * width + x], 0.0);
         }
+        fft_h.process(&mut row_buf);
+        spectrum[y * width..(y + 1) * width].copy_from_slice(&row_buf);
     }
 
-    // 2. FFT по столбцам
     let fft_v = planner.plan_fft_forward(height);
+    let mut col_buf: Vec<Complex<f64>> = vec![Complex::new(0.0, 0.0); height];
     for x in 0..width {
-        let mut col: Vec<Complex<f64>> = (0..height)
-            .map(|y| spectrum[y * width + x])
-            .collect();
-        fft_v.process(&mut col);
         for y in 0..height {
-            spectrum[y * width + x] = col[y];
+            col_buf[y] = spectrum[y * width + x];
+        }
+        fft_v.process(&mut col_buf);
+        for y in 0..height {
+            spectrum[y * width + x] = col_buf[y];
         }
     }
 
-    // 3. Радиальное усреднение (центрированный спектр)
     let cx = width / 2;
     let cy = height / 2;
     let max_r = cx.max(cy);
@@ -71,61 +67,55 @@ pub fn detect_resolution(gray: &[f64], width: usize, height: usize) -> Resolutio
             let dx = x as i64 - cx as i64;
             let dy = y as i64 - cy as i64;
             let r = ((dx * dx + dy * dy) as f64).sqrt() as usize;
-            if r < radial_power.len() {
+            if r < max_r {
                 radial_power[r] += mag;
                 radial_count[r] += 1;
             }
         }
     }
 
-    for i in 0..radial_power.len() {
-        if radial_count[i] > 0 {
-            radial_power[i] /= radial_count[i] as f64;
+    for (power, count) in radial_power.iter_mut().zip(&radial_count) {
+        if *count > 0 {
+            *power /= *count as f64;
         }
     }
 
-    // 4. Частота среза: где мощность < 1% от пика
-    let peak = radial_power[1..].iter().cloned().fold(0.0f64, f64::max);
-    let threshold = peak * 0.01;
-    let mut cutoff_r = radial_power.len();
-    for (i, &p) in radial_power.iter().enumerate().skip(1) {
-        if p < threshold {
-            cutoff_r = i;
-            break;
-        }
+    let peak = radial_power.iter().skip(1).cloned().fold(0.0f64, f64::max);
+    if peak == 0.0 {
+        return Ok(ResolutionResult {
+            cutoff_x: width as u32,
+            cutoff_y: height as u32,
+            estimated_native: (width as u32, height as u32),
+        });
     }
 
-    // 5. Маппинг на ближайшее стандартное разрешение
-    let cutoff_x = (cutoff_r as f64 / cx as f64 * (width as f64 / 2.0)) as u32 * 2;
-    let cutoff_y = (cutoff_r as f64 / cy as f64 * (height as f64 / 2.0)) as u32 * 2;
+    let cutoff_r = radial_power
+        .iter()
+        .skip(1)
+        .position(|&p| p < peak * 0.01)
+        .unwrap_or(max_r - 1)
+        + 1;
+
+    let cutoff_x = (cutoff_r as f64 / cx as f64 * width as f64 / 2.0) as u32 * 2;
+    let cutoff_y = (cutoff_r as f64 / cy as f64 * height as f64 / 2.0) as u32 * 2;
 
     let estimated = STANDARD_RESOLUTIONS
         .iter()
         .min_by_key(|&&(w, h)| {
-            let dw = (w as i64 - cutoff_x as i64).abs();
-            let dh = (h as i64 - cutoff_y as i64).abs();
-            dw + dh
+            let dw = i64::from(w) - i64::from(cutoff_x);
+            let dh = i64::from(h) - i64::from(cutoff_y);
+            dw.abs() + dh.abs()
         })
         .copied()
         .unwrap_or((width as u32, height as u32));
 
-    ResolutionResult {
-        cutoff_x,
-        cutoff_y,
-        estimated_native: estimated,
-    }
+    Ok(ResolutionResult { cutoff_x, cutoff_y, estimated_native: estimated })
 }
 
-/// Конвертировать RGB в grayscale (simple luminance).
-pub fn rgb_to_gray(rgb: &[u8], width: u32, height: u32) -> Vec<f64> {
-    let n = (width * height) as usize;
-    let mut gray = vec![0.0f64; n];
-    for i in 0..n {
-        let off = i * 3;
-        let r = rgb[off] as f64;
-        let g = rgb[off + 1] as f64;
-        let b = rgb[off + 2] as f64;
-        gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
-    }
-    gray
+/// Convert RGB8 to grayscale [0.0, 1.0] (Rec. 709 luminance).
+#[must_use]
+pub fn rgb_to_gray(pixels: &[RGB8]) -> Vec<f64> {
+    pixels.iter().map(|p| {
+        (0.2126 * f64::from(p.r) + 0.7152 * f64::from(p.g) + 0.0722 * f64::from(p.b)) / 255.0
+    }).collect()
 }

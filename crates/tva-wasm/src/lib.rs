@@ -1,13 +1,12 @@
 //! WASM bindings for tva-core.
-//! Receives RGBA `ImageData` frames from WebCodecs, returns JSON analysis.
+//! Receives RGB `ImageData` frames from WebCodecs, returns JSON analysis.
 
 use wasm_bindgen::prelude::*;
-use tva_core::pipeline::{self, FrameSource, FrameData, VideoMeta, PipelineConfig, NullSink};
-use tva_core::resolution;
+use tva_core::pipeline::{self, FrameSource, VideoMeta, PipelineConfig, NullSink};
+use rgb::RGB8;
 
 /// Analyze decoded video frames from the browser.
-/// `data` — flat RGBA buffer (RGB, not RGBA), `width`/`height` — frame dimensions.
-/// Returns JSON-serialized `Report`.
+/// `data` — flat RGB buffer (3 bytes per pixel), `width`/`height` — frame dimensions.
 #[wasm_bindgen]
 pub fn analyze_frames_wasm(
     data: Vec<u8>,
@@ -33,30 +32,26 @@ pub fn analyze_frames_wasm(
                 codec: "raw".into(),
             }
         }
-        fn next_frame(&mut self) -> Option<FrameData> {
+        fn next_frame(&mut self) -> Option<Vec<RGB8>> {
             if self.index >= self.frame_count {
                 return None;
             }
             let frame_size = (self.width * self.height * 3) as usize;
             let offset = self.index * frame_size;
-            let data = self.data[offset..offset + frame_size].to_vec();
-            let idx = self.index as u64;
+            let raw = &self.data[offset..offset + frame_size];
+            let pixels: Vec<RGB8> = raw.chunks_exact(3).map(|c| RGB8 { r: c[0], g: c[1], b: c[2] }).collect();
             self.index += 1;
-            Some(FrameData { data, index: idx })
+            Some(pixels)
         }
     }
 
-    let mut source = BufSource {
-        data,
-        width,
-        height,
-        frame_count,
-        index: 0,
-    };
+    let mut source = BufSource { data, width, height, frame_count, index: 0 };
     let config = PipelineConfig::default();
     let mut sink = NullSink;
-    let report = pipeline::analyze(&mut source, &config, &mut sink);
-    serde_json::to_string(&report).unwrap()
+    match pipeline::analyze(&mut source, &config, &mut sink) {
+        Ok(report) => serde_json::to_string(&report).unwrap(),
+        Err(e) => format!(r#"{{"error":"{}"}}"#, e),
+    }
 }
 
 /// Return crate version.

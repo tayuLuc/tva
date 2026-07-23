@@ -1,14 +1,14 @@
 //! Streaming pipeline: one frame at a time, bounded memory.
-//! Собирает вместе compare, detect, metrics, smooth, resolution.
 
 use crate::compare::CompareMethod;
 use crate::detect::{DedupState, TearInfo};
+use crate::error::Result;
 use crate::metrics::{compute_frame_metrics, compute_summary, FrameMetric, SummaryMetrics};
 use crate::resolution::{detect_resolution, rgb_to_gray, ResolutionResult};
 use crate::smooth::smooth_fps;
+use rgb::RGB8;
 
-/// Конфигурация конвейера.
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct PipelineConfig {
     pub compare_method: CompareMethod,
     pub detect_tears: bool,
@@ -35,8 +35,7 @@ impl Default for PipelineConfig {
     }
 }
 
-/// Метаданные видео.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct VideoMeta {
     pub width: u32,
     pub height: u32,
@@ -45,8 +44,7 @@ pub struct VideoMeta {
     pub codec: String,
 }
 
-/// Итоговый отчёт анализа.
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Report {
     pub schema_version: u32,
     pub meta: VideoMeta,
@@ -57,68 +55,44 @@ pub struct Report {
     pub resolution: Option<Vec<ResolutionResult>>,
 }
 
-/// События конвейера (для колбэков).
 pub enum AnalysisEvent {
     Progress { frame: u64, total: u64 },
     Error { frame: u64, message: String },
 }
 
-/// Трейт источника кадров (FFmpeg, WebCodecs, тестовый).
 pub trait FrameSource {
     fn metadata(&self) -> VideoMeta;
-    fn next_frame(&mut self) -> Option<FrameData>;
+    fn next_frame(&mut self) -> Option<Vec<RGB8>>;
 }
 
-/// Сырой кадр: плоский RGB-буфер.
-#[derive(Clone, Debug)]
-pub struct FrameData {
-    pub data: Vec<u8>,
-    pub index: u64,
-}
-
-/// Трейт для получения событий (прогресс, ошибки).
 pub trait EventSink {
     fn on_event(&mut self, event: AnalysisEvent);
 }
 
-/// Заглушка для EventSink, когда колбэки не нужны.
 pub struct NullSink;
 impl EventSink for NullSink {
     fn on_event(&mut self, _event: AnalysisEvent) {}
 }
 
-/// Streaming pipeline: читает кадры из FrameSource, выдаёт Report.
-///
-/// ## Батчи
-///
-/// 1. Duplicate detection через `DedupState`
-/// 2. Tear detection между предыдущим и текущим кадром
-/// 3. Resolution detection (каждый N-й кадр)
-/// 4. Итоговые метрики + сглаживание FPS
+/// Streaming analysis pipeline.
 pub fn analyze(
     source: &mut dyn FrameSource,
     config: &PipelineConfig,
     events: &mut dyn EventSink,
-) -> Report {
+) -> Result<Report> {
     let meta = source.metadata();
     let container_fps = meta.fps;
-    let (w, h) = (meta.width, meta.height);
+    let (w, h) = (meta.width as usize, meta.height as usize);
 
     let mut dedup = DedupState::new();
     let mut streaks: Vec<u32> = Vec::new();
     let mut tears: Vec<TearInfo> = Vec::new();
     let mut resolutions: Vec<ResolutionResult> = Vec::new();
-    let mut prev_frame: Option<Vec<u8>> = None;
+    let mut prev_frame: Option<Vec<RGB8>> = None;
+    let mut frame_index: u64 = 0;
 
     while let Some(frame) = source.next_frame() {
-        // 1. Duplicate detection
-        if let Some(dup) = dedup.process(
-            &frame.data,
-            frame.index,
-            &config.compare_method,
-            w,
-            h,
-        ) {
+        if let Some(dup) = dedup.process(&frame, frame_index, w, h, &config.compare_method)? {
             if let Some(last) = streaks.last_mut() {
                 *last = dup.streak_length;
             }
@@ -126,62 +100,44 @@ pub fn analyze(
             streaks.push(1);
         }
 
-        // 2. Tear detection
         if config.detect_tears {
             if let Some(ref prev) = prev_frame {
                 if let Some(mut tear) = crate::detect::detect_tear(
-                    prev,
-                    &frame.data,
-                    w,
-                    h,
-                    config.tear_threshold_high,
-                    config.tear_threshold_low,
+                    prev, &frame, w, h,
+                    config.tear_threshold_high, config.tear_threshold_low,
                 ) {
-                    tear.frame_index = frame.index;
+                    tear.frame_index = frame_index;
                     tears.push(tear);
                 }
             }
         }
 
-        // 3. Resolution detection (sampled)
-        if config.detect_resolution
-            && frame.index % config.resolution_sample_interval as u64 == 0
-        {
-            let gray = rgb_to_gray(&frame.data, w, h);
-            resolutions.push(detect_resolution(&gray, w as usize, h as usize));
+        if config.detect_resolution && frame_index % config.resolution_sample_interval as u64 == 0 {
+            let gray = rgb_to_gray(&frame);
+            if let Ok(res) = detect_resolution(&gray, w, h) {
+                resolutions.push(res);
+            }
         }
 
-        // 4. Прогресс
-        events.on_event(AnalysisEvent::Progress {
-            frame: frame.index,
-            total: meta.total_frames,
-        });
-
-        prev_frame = Some(frame.data);
+        events.on_event(AnalysisEvent::Progress { frame: frame_index, total: meta.total_frames });
+        prev_frame = Some(frame);
+        frame_index += 1;
     }
 
-    // 5. Метрики
     let frame_metrics = compute_frame_metrics(&streaks, container_fps);
     let summary = compute_summary(&frame_metrics, tears.len() as u64);
 
-    // 6. Сглаживание
-    let fps_raw: Vec<f64> = frame_metrics
-        .iter()
-        .map(|m| m.instantaneous_fps)
-        .collect();
-    let fps_smoothed = smooth_fps(&fps_raw, config.smooth_window, config.smooth_polyorder);
+    let fps_raw: Vec<f64> = frame_metrics.iter().map(|m| m.instantaneous_fps).collect();
+    let fps_smoothed = smooth_fps(&fps_raw, config.smooth_window, config.smooth_polyorder)
+        .unwrap_or(fps_raw);
 
-    Report {
+    Ok(Report {
         schema_version: 1,
         meta,
         summary,
         frames: frame_metrics,
         fps_smoothed,
         tears,
-        resolution: if config.detect_resolution {
-            Some(resolutions)
-        } else {
-            None
-        },
-    }
+        resolution: if config.detect_resolution { Some(resolutions) } else { None },
+    })
 }
