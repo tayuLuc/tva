@@ -5,18 +5,17 @@ edition = "2021"
 description = "Core video analysis engine for Temporal Video Analyzer"
 
 [dependencies]
-ffmpeg-next = "7"
 image = "0.25"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-csv = "1"
-rayon = "1"
+image-similarity = "0.6"
 palette = "0.7"
 dssim-core = "3.4"
 rgb = "0.8"
-bytemuck = { version = "1", features = ["derive"] }
 savgol-rs = "0.1"
 rustfft = "6.2"
+video-rs = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+csv = "1"
 thiserror = "2"
 
 [dev-dependencies]

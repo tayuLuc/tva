@@ -16,7 +16,7 @@ pub struct PipelineConfig {
 impl Default for PipelineConfig {
     fn default() -> Self {
         Self {
-            compare_method: CompareMethod::Oklab { threshold: 2.0 },
+            compare_method: CompareMethod::Ssim { threshold: 0.98 },
             detect_tears: true,
             tear_threshold_high: 30.0,
             tear_threshold_low: 5.0,
