@@ -41,6 +41,22 @@ jobs:
       - run: cargo test -p tva-core --lib
       - run: cargo test -p tva-core --doc
 
+      - name: Generate fixtures
+        run: bash scripts/gen_fixtures.sh
+
+      - name: Integration test with fixtures
+        run: cargo test -p tva-core --test integration --features decode-images -- --nocapture
+
+      - name: Download test video
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          curl -L -o /tmp/test.mp4 "https://samplelib.com/lib/preview/mp4/sample-5s.mp4"
+          mkdir -p /tmp/test_frames
+          ffmpeg -i /tmp/test.mp4 -vf "fps=10,scale=320:-1" -frames:v 30 /tmp/test_frames/%04d.png -y
+
+      - name: CLI smoke test (frames)
+        run: cargo run -p tva-cli -- analyze /tmp/test_frames --format json | head -5
+
   deny:
     name: Dependencies
     runs-on: ubuntu-latest

@@ -3,3 +3,7 @@ node_modules/
 *.wasm
 pkg/
 .DS_Store
+*.mp4
+*.webm
+*.avi
+!crates/tva-core/tests/fixtures/
