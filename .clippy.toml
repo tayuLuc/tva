@@ -1,0 +1,19 @@
+# Clippy configuration for TVA
+# https://doc.rust-lang.org/clippy/
+
+# Disallowed: any kind of type erasure
+disallowed-macros = ["unreachable"]
+
+# Maximum type complexity for public interfaces
+type-complexity-threshold = 250
+
+# Allow certain lints
+allow = [
+  "module_name_repetitions",  # tva-core::core is fine
+]
+
+# Deny these
+deny = [
+  "unsafe_code",
+  "missing_docs_in_private_items",
+]
