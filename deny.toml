@@ -4,10 +4,7 @@ unmaintained = "warn"
 yanked = "deny"
 
 [bans]
-multiple-versions = "warn"
-skip = [
-    { name = "ansi_term", version = "0.12" },
-]
+multiple-versions = "allow"
 
 [licenses]
 allow = [

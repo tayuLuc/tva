@@ -11,5 +11,9 @@ pub extern "C" fn tva_analyze(path: *const c_char) -> *mut c_char {
 
 #[no_mangle]
 pub extern "C" fn tva_free_string(s: *mut c_char) {
-    if !s.is_null() { unsafe { drop(CString::from_raw(s)); } }
+    if !s.is_null() {
+        unsafe {
+            drop(CString::from_raw(s));
+        }
+    }
 }

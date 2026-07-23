@@ -48,21 +48,12 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        Command::Analyze {
-            input,
-            format,
-            metrics,
-            output,
-        } => {
+        Command::Analyze { input, format, metrics, output } => {
             // ponytail: stub — full impl in phase 3
             let _ = (format, metrics, output);
             eprintln!("tva analyze: {} file(s)", input.len());
         }
-        Command::Overlay {
-            input,
-            output,
-            codec,
-        } => {
+        Command::Overlay { input, output, codec } => {
             // ponytail: stub — full impl in phase 7
             let _ = codec;
             eprintln!("tva overlay: {} -> {}", input.display(), output.display());

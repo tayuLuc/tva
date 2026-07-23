@@ -15,8 +15,12 @@ impl FrameComparator for SsimComparator {
         image_compare::rgb_similarity_structure(&img_a, &img_b, image_compare::Metric::Ssim)
             .map_err(TvaError::CompareFailed)
     }
-    fn higher_is_similar(&self) -> bool { true }
-    fn name(&self) -> &'static str { "ssim" }
+    fn higher_is_similar(&self) -> bool {
+        true
+    }
+    fn name(&self) -> &'static str {
+        "ssim"
+    }
 }
 
 pub struct MsSsimComparator {
@@ -30,8 +34,12 @@ impl FrameComparator for MsSsimComparator {
         image_compare::rgb_similarity_structure(&img_a, &img_b, image_compare::Metric::Mssim)
             .map_err(TvaError::CompareFailed)
     }
-    fn higher_is_similar(&self) -> bool { true }
-    fn name(&self) -> &'static str { "mssim" }
+    fn higher_is_similar(&self) -> bool {
+        true
+    }
+    fn name(&self) -> &'static str {
+        "mssim"
+    }
 }
 
 pub struct HybridComparator {
@@ -45,8 +53,12 @@ impl FrameComparator for HybridComparator {
         image_compare::rgb_similarity_structure(&img_a, &img_b, image_compare::Metric::Hybrid)
             .map_err(TvaError::CompareFailed)
     }
-    fn higher_is_similar(&self) -> bool { true }
-    fn name(&self) -> &'static str { "hybrid" }
+    fn higher_is_similar(&self) -> bool {
+        true
+    }
+    fn name(&self) -> &'static str {
+        "hybrid"
+    }
 }
 
 pub struct MadComparator {
@@ -60,8 +72,12 @@ impl FrameComparator for MadComparator {
         image_compare::rgb_diffing_structure(&img_a, &img_b, image_compare::Metric::Mad)
             .map_err(TvaError::CompareFailed)
     }
-    fn higher_is_similar(&self) -> bool { false }
-    fn name(&self) -> &'static str { "mad" }
+    fn higher_is_similar(&self) -> bool {
+        false
+    }
+    fn name(&self) -> &'static str {
+        "mad"
+    }
 }
 
 pub struct SadComparator {
@@ -75,6 +91,10 @@ impl FrameComparator for SadComparator {
         image_compare::rgb_diffing_structure(&img_a, &img_b, image_compare::Metric::Sad)
             .map_err(TvaError::CompareFailed)
     }
-    fn higher_is_similar(&self) -> bool { false }
-    fn name(&self) -> &'static str { "sad" }
+    fn higher_is_similar(&self) -> bool {
+        false
+    }
+    fn name(&self) -> &'static str {
+        "sad"
+    }
 }

@@ -14,14 +14,18 @@ impl Smoother for SavgolSmoother {
             return Ok(Vec::new());
         }
         if self.window <= self.polyorder + 1 {
-            return Err(TvaError::SmoothingFailed(
-                format!("window {} must be > polyorder+1 ({})", self.window, self.polyorder + 1),
-            ));
+            return Err(TvaError::SmoothingFailed(format!(
+                "window {} must be > polyorder+1 ({})",
+                self.window,
+                self.polyorder + 1
+            )));
         }
         if self.window > data.len() {
-            return Err(TvaError::SmoothingFailed(
-                format!("window {} exceeds data length {}", self.window, data.len()),
-            ));
+            return Err(TvaError::SmoothingFailed(format!(
+                "window {} exceeds data length {}",
+                self.window,
+                data.len()
+            )));
         }
         let mut buf = data.to_vec();
         staged_sg_filter::savgol(&mut buf, self.window, self.polyorder)

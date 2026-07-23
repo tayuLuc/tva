@@ -29,23 +29,32 @@ pub fn analyze(
 
     while let Some(frame) = source.next_frame() {
         if let Some(dup) = dedup.process(&frame, comparator)? {
-            if let Some(l) = streaks.last_mut() { *l = dup.streak_length; }
+            if let Some(l) = streaks.last_mut() {
+                *l = dup.streak_length;
+            }
             events.on_event(AnalysisEvent::DuplicateFound { frame: frame.index, streak: dup.streak_length });
-        } else { streaks.push(1); }
+        } else {
+            streaks.push(1);
+        }
 
         if config.detect_tears {
             if let Some(ref p) = pframe {
-                if let Some(mut t) = crate::detect::detect_tear(p, &frame, config.tear_threshold_high, config.tear_threshold_low)? {
+                if let Some(mut t) =
+                    crate::detect::detect_tear(p, &frame, config.tear_threshold_high, config.tear_threshold_low)?
+                {
                     t.frame_index = frame.index;
+                    let pos = t.tear_position;
                     tears.push(t);
-                    events.on_event(AnalysisEvent::TearDetected { frame: frame.index, position: t.tear_position });
+                    events.on_event(AnalysisEvent::TearDetected { frame: frame.index, position: pos });
                 }
             }
         }
 
         #[cfg(feature = "fft")]
         if config.detect_resolution && fc % config.resolution_sample_interval as u64 == 0 {
-            if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) { resolutions.push(res); }
+            if let Ok(res) = detect_resolution(&frame, crate::resolution::default_fft_2d) {
+                resolutions.push(res);
+            }
         }
 
         events.on_event(AnalysisEvent::Progress { frame: frame.index, total: meta.total_frames });
@@ -60,7 +69,8 @@ pub fn analyze(
 
     Ok(Report {
         schema_version: 1,
-        meta, summary,
+        meta,
+        summary,
         frames: fm,
         fps_smoothed: fps_smooth,
         tears: Some(tears).filter(|t| !t.is_empty()),

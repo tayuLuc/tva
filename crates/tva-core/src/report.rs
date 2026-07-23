@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::detect::TearInfo;
 use crate::frame::VideoMeta;
 use crate::metrics::{FrameMetric, SummaryMetrics};
 use crate::resolution::ResolutionResult;
+use serde::{Deserialize, Serialize};
 
 /// Schema policy:
 /// - Поля НЕ удаляются и НЕ переименовываются

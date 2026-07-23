@@ -22,6 +22,24 @@ pub enum TvaError {
 
     #[error("adapter not enabled: enable feature `{0}`")]
     AdapterNotEnabled(&'static str),
+
+    #[error("serialization error: {0}")]
+    Serialization(String),
+
+    #[error("csv error: {0}")]
+    Csv(String),
+}
+
+impl From<serde_json::Error> for TvaError {
+    fn from(e: serde_json::Error) -> Self {
+        TvaError::Serialization(e.to_string())
+    }
+}
+
+impl From<csv::Error> for TvaError {
+    fn from(e: csv::Error) -> Self {
+        TvaError::Csv(e.to_string())
+    }
 }
 
 pub type Result<T> = std::result::Result<T, TvaError>;
