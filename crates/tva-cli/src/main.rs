@@ -1,13 +1,14 @@
 #![forbid(unsafe_code)]
 
-//! tva CLI — analyze video files from the command line.
-//! Machine-parseable JSON/CSV output for AI agents and scripts.
-
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
+use tva_core::{
+    adapters::identity_smoother::IdentitySmoother, adapters::image_compare::SsimComparator, config::PipelineConfig,
+    events::NullSink, pipeline, traits::Smoother, Report,
+};
 
 #[derive(Parser)]
-#[command(name = "tva", about = "Temporal Video Analyzer")]
+#[command(name = "tva", version, about = "Temporal Video Analyzer")]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -15,48 +16,115 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Analyze video file(s)
     Analyze {
-        /// Input video file(s) or glob
-        input: Vec<PathBuf>,
-
-        /// Output format (json, csv)
+        input: PathBuf,
         #[arg(long, default_value = "json")]
         format: String,
-
-        /// Specific metrics (comma-separated)
-        #[arg(long)]
-        metrics: Option<String>,
-
-        /// Output file (default: stdout)
         #[arg(short, long)]
         output: Option<PathBuf>,
-    },
-    /// Render overlay video with FPS graph
-    Overlay {
-        /// Input video
-        input: PathBuf,
-        /// Output video
-        #[arg(short, long)]
-        output: PathBuf,
-        /// Codec (h264, h265)
-        #[arg(long, default_value = "h264")]
-        codec: String,
+        #[arg(long)]
+        fps: Option<f64>,
+        #[arg(long, default_value_t = 0.98)]
+        threshold: f64,
+        #[arg(long)]
+        no_tears: bool,
     },
 }
 
 fn main() {
     let cli = Cli::parse();
+    if let Err(e) = run(cli) {
+        eprintln!("error: {e}");
+        std::process::exit(1);
+    }
+}
+
+fn run(cli: Cli) -> tva_core::Result<()> {
     match cli.command {
-        Command::Analyze { input, format, metrics, output } => {
-            // ponytail: stub — full impl in phase 3
-            let _ = (format, metrics, output);
-            eprintln!("tva analyze: {} file(s)", input.len());
-        }
-        Command::Overlay { input, output, codec } => {
-            // ponytail: stub — full impl in phase 7
-            let _ = codec;
-            eprintln!("tva overlay: {} -> {}", input.display(), output.display());
+        Command::Analyze { input, format, output, fps, threshold, no_tears } => {
+            let mut decoder: Box<dyn tva_core::traits::FrameDecoder> = if input.is_dir() {
+                Box::new(tva_core::adapters::image_seq::ImageSeqDecoder::open(&input, fps)?)
+            } else {
+                return Err(tva_core::TvaError::Decode(
+                    "video files require decode-ffmpeg feature; use a directory of PNG/JPG frames instead".into(),
+                ));
+            };
+
+            let comparator = SsimComparator;
+
+            #[cfg(feature = "smooth-savgol")]
+            let smoother: Box<dyn Smoother> =
+                Box::new(tva_core::adapters::savgol::SavgolSmoother { window: 21, polyorder: 3 });
+            #[cfg(not(feature = "smooth-savgol"))]
+            let smoother: Box<dyn Smoother> = Box::new(IdentitySmoother);
+
+            let config =
+                PipelineConfig { duplicate_threshold: threshold, detect_tears: !no_tears, ..Default::default() };
+
+            let mut sink = NullSink;
+            let report: Report =
+                pipeline::analyze(decoder.as_mut(), &config, &comparator, smoother.as_ref(), &mut sink)?;
+
+            match format.as_str() {
+                "json" => {
+                    let json = tva_core::export::to_json(&report)?;
+                    write_output(&output, &json)?;
+                }
+                "csv" => {
+                    if let Some(path) = &output {
+                        tva_core::export::to_csv(&report, path)?;
+                    } else {
+                        let mut w = csv::Writer::from_writer(std::io::stdout());
+                        w.write_record([
+                            "container_frame",
+                            "unique_frame",
+                            "streak_length",
+                            "real_frame_time_ms",
+                            "instantaneous_fps",
+                        ])
+                        .map_err(|e| tva_core::TvaError::Csv(e.to_string()))?;
+                        for f in &report.frames {
+                            w.write_record(&[
+                                f.container_frame.to_string(),
+                                f.unique_frame.to_string(),
+                                f.streak_length.to_string(),
+                                format!("{:.4}", f.real_frame_time_ms),
+                                format!("{:.4}", f.instantaneous_fps),
+                            ])
+                            .map_err(|e| tva_core::TvaError::Csv(e.to_string()))?;
+                        }
+                        w.flush().map_err(|e| tva_core::TvaError::Csv(e.to_string()))?;
+                    }
+                }
+                other => {
+                    return Err(tva_core::TvaError::Decode(format!("unknown format: {other} (expected json or csv)")))
+                }
+            }
+
+            let s = &report.summary;
+            eprintln!(
+                "analyzed {} frames: {} unique, {} duplicates, {} tears | avg {:.1} fps, 1% low {:.1}, P99 {:.1} ms",
+                s.total_container_frames,
+                s.total_unique_frames,
+                s.duplicate_count,
+                s.tear_count,
+                s.avg_fps,
+                s.fps_1_low,
+                s.p99_frame_time_ms,
+            );
+
+            Ok(())
         }
     }
+}
+
+fn write_output(path: &Option<PathBuf>, content: &str) -> tva_core::Result<()> {
+    match path {
+        Some(p) => {
+            std::fs::write(p, content)?;
+            eprintln!("written to {}", p.display());
+        }
+        None => print!("{content}"),
+    }
+    Ok(())
 }

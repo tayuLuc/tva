@@ -24,3 +24,5 @@ pub use pixel_buffer::PixelBuffer;
 pub use report::Report;
 pub use resolution::ResolutionResult;
 pub use traits::{FrameComparator, FrameDecoder, Smoother};
+
+pub use adapters::identity_smoother::IdentitySmoother;

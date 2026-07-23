@@ -3,15 +3,14 @@ name = "tva-cli"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["TVA Contributors"]
-description = "CLI for Temporal Video Analyzer — analyze FPS, duplicates, tears"
-homepage = "https://github.com/tayuLuc/tva"
-repository = "https://github.com/tayuLuc/tva"
-keywords = ["video", "analysis", "cli", "fps"]
-categories = ["command-line-utilities", "multimedia::video"]
+description = "CLI for Temporal Video Analyzer"
 
 [dependencies]
-tva-core = { path = "../tva-core" }
+tva-core = { path = "../tva-core", features = [
+    "compare-image",
+    "smooth-savgol",
+    "decode-images",
+] }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 csv = "1"
