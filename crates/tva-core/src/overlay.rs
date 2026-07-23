@@ -1,0 +1,10 @@
+//! Render FPS/frametime graph overlay onto video frames.
+
+use crate::Report;
+use std::path::Path;
+
+/// Render overlay video with FPS graph.
+/// ponytail: stub — ffmpeg `drawtext` + `drawgraph` filter chain when implemented.
+pub fn render(_path: &Path, _report: &Report, _out: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    Ok(())
+}
