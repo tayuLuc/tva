@@ -1,3 +1,7 @@
+[advisories]
+severity = "deny"
+unmaintained = "allow"
+
 [licenses]
 allow = [
     "MIT",
