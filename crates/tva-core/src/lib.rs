@@ -3,6 +3,7 @@
 pub mod adapters;
 pub mod config;
 pub mod decoder;
+pub mod degradation;
 pub mod detect;
 pub mod error;
 pub mod events;
@@ -26,5 +27,6 @@ pub use resolution::{ResolutionResult, UpscaleVerdict};
 pub use traits::{FrameComparator, FrameDecoder, Smoother};
 
 pub use adapters::identity_smoother::IdentitySmoother;
+pub use degradation::{DegradationConfig, DegradationPoint, DegradationReport, DegradationSummary, SizeMismatch};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

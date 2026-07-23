@@ -4,6 +4,7 @@ pub enum AnalysisEvent {
     DuplicateFound { frame: u64, streak: u32 },
     TearDetected { frame: u64, position: f32 },
     SecondComplete { second: u32, unique_frames: u32 },
+    ComparedPair { timestamp_ms: f64, similarity: f64 },
 }
 
 pub trait EventSink {
