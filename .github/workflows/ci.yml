@@ -101,6 +101,9 @@ jobs:
 
       - run: cargo check -p tva-core --features decode-ffmpeg-native
 
+      - name: CLI with native decode
+        run: cargo check -p tva-cli --features decode-ffmpeg-native
+
   # ── MegaLinter: YAML, Markdown, JSON, TOML, Dockerfile, Secrets ──
   megalinter:
     name: MegaLinter

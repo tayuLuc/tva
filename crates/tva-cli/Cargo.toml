@@ -8,12 +8,12 @@ description = "CLI for Temporal Video Analyzer"
 [features]
 default = ["smooth-savgol"]
 smooth-savgol = ["tva-core/smooth-savgol"]
+decode-ffmpeg-native = ["tva-core/decode-ffmpeg-native"]
 
 [dependencies]
 tva-core = { path = "../tva-core", features = [
     "compare-image",
     "decode-images",
-    "decode-ffmpeg-native",
 ] }
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"

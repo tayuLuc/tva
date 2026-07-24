@@ -3,9 +3,10 @@
 use clap::{Parser, Subcommand};
 use std::path::{Path, PathBuf};
 use std::process::Command as SystemCommand;
+#[cfg(feature = "decode-ffmpeg-native")]
+use tva_core::adapters::ffmpeg_native::FfmpegNativeDecoder;
 use tva_core::adapters::{
-    ffmpeg_native::FfmpegNativeDecoder, identity_smoother::IdentitySmoother, image_compare::metric_by_name,
-    image_seq::ImageSeqDecoder,
+    identity_smoother::IdentitySmoother, image_compare::metric_by_name, image_seq::ImageSeqDecoder,
 };
 use tva_core::{
     config::PipelineConfig,
@@ -228,7 +229,16 @@ fn open_decoder(path: &Path, fps: Option<f64>) -> tva_core::Result<Box<dyn Frame
     if path.is_dir() {
         Ok(Box::new(ImageSeqDecoder::open(path, fps)?))
     } else {
-        Ok(Box::new(FfmpegNativeDecoder::open(path)?))
+        #[cfg(feature = "decode-ffmpeg-native")]
+        {
+            Ok(Box::new(FfmpegNativeDecoder::open(path)?))
+        }
+        #[cfg(not(feature = "decode-ffmpeg-native"))]
+        {
+            Err(tva_core::TvaError::Decode(
+                "video files require decode-ffmpeg-native feature; enable with --features decode-ffmpeg-native".into(),
+            ))
+        }
     }
 }
 
