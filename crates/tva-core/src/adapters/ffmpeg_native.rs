@@ -8,7 +8,7 @@
 use std::path::Path;
 use std::sync::Once;
 
-use ffmpeg_next::format::{context::Input, input, Pixel};
+use ffmpeg_next::format::{input, Pixel};
 use ffmpeg_next::media::Type;
 use ffmpeg_next::software::scaling::{context::Context as ScaleCtx, flag::Flags};
 use ffmpeg_next::util::frame::video::Video as VideoFrame;
@@ -29,10 +29,11 @@ fn init_once() {
 
 pub struct FfmpegNativeDecoder {
     meta: VideoMeta,
-    input: Input,
+    input: ffmpeg_next::format::context::Input,
     decoder: ffmpeg_next::decoder::Video,
     scaler: ScaleCtx,
     rgb_frame: VideoFrame,
+    video_stream_index: usize,
     width: u32,
     height: u32,
     index: u64,
@@ -41,16 +42,21 @@ pub struct FfmpegNativeDecoder {
 impl FfmpegNativeDecoder {
     pub fn open(path: &Path) -> Result<Self> {
         init_once();
-        let input = input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
+        let mut input = input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
 
         let stream = input.streams().best(Type::Video).ok_or_else(|| TvaError::Decode("no video stream".into()))?;
 
-        // Metadata
-        let par = stream.parameters();
-        let width = par.width();
-        let height = par.height();
-        let fps = rational_to_f64(stream.avg_frame_rate());
+        let video_stream_index = stream.index();
         let tb = stream.time_base();
+
+        // Metadata from decoder context
+        let ctx = ffmpeg_next::codec::context::Context::from_parameters(stream.parameters())
+            .map_err(|e| TvaError::Decode(format!("codec context: {e}")))?;
+        let mut decoder = ctx.decoder().video().map_err(|e| TvaError::Decode(format!("open video decoder: {e}")))?;
+        let width = decoder.width();
+        let height = decoder.height();
+        let src_format = decoder.format();
+        let fps = rational_to_f64(stream.avg_frame_rate());
         let duration_ms = if stream.duration() > 0 {
             stream.duration() as f64 * tb.numerator() as f64 / tb.denominator() as f64 * 1000.0
         } else {
@@ -58,13 +64,6 @@ impl FfmpegNativeDecoder {
         };
         let total_frames = if fps > 0.0 && duration_ms > 0.0 { (duration_ms / 1000.0 * fps).round() as u64 } else { 0 };
 
-        // Decoder from stream parameters
-        let decoder =
-            stream.parameters().decoder().video().map_err(|e| TvaError::Decode(format!("open video decoder: {e}")))?;
-        let src_format = decoder.format();
-
-        // Scaler: native decoder format -> RGB24, native resolution.
-        // Downscale for analysis is done by pipeline/CLI flag above.
         let scaler = ScaleCtx::get(src_format, width, height, Pixel::RGB24, width, height, Flags::BILINEAR)
             .map_err(|e| TvaError::Decode(format!("init scaler: {e}")))?;
 
@@ -76,18 +75,18 @@ impl FfmpegNativeDecoder {
             decoder,
             scaler,
             rgb_frame,
+            video_stream_index,
             width,
             height,
             index: 0,
         })
     }
 
-    /// Decode the next frame. `None` = EOF.
     fn decode_next(&mut self) -> Option<(Vec<u8>, f64)> {
         loop {
             match self.input.packets().next() {
                 Some(Ok((stream, packet))) => {
-                    if stream.index() != self.decoder.index() {
+                    if stream.index() != self.video_stream_index {
                         continue;
                     }
                     let pts_ms = packet_pts_ms(packet.pts(), stream.time_base());
@@ -133,8 +132,8 @@ impl FrameDecoder for FfmpegNativeDecoder {
     }
 
     fn next_frame(&mut self) -> Option<Frame> {
-        let (rgb, pts_ms) = self.decode_next()?;
-        let data = PixelBuffer::new(rgb, self.width, self.height).ok()?;
+        let (rgb_bytes, pts_ms) = self.decode_next()?;
+        let data = PixelBuffer::new(rgb_bytes, self.width, self.height).ok()?;
         let idx = self.index;
         self.index += 1;
         Some(Frame { data, index: idx, timestamp_ms: pts_ms })
