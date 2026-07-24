@@ -92,7 +92,8 @@ fn run(cli: Cli) -> tva_core::Result<()> {
                 Box::new(tva_core::adapters::image_seq::ImageSeqDecoder::open(&input, fps)?)
             } else {
                 return Err(tva_core::TvaError::Decode(
-                    "video files require decode-ffmpeg-native feature; use a directory of PNG/JPG frames instead".into(),
+                    "video files require decode-ffmpeg-native feature; use a directory of PNG/JPG frames instead"
+                        .into(),
                 ));
             };
 
