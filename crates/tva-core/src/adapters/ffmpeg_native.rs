@@ -42,13 +42,10 @@ pub struct FfmpegNativeDecoder {
 impl FfmpegNativeDecoder {
     pub fn open(path: &Path) -> Result<Self> {
         init_once();
-        let input = ffmpeg::format::input(path)
-            .map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
+        let input =
+            ffmpeg::format::input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
 
-        let stream = input
-            .streams()
-            .best(Type::Video)
-            .ok_or_else(|| TvaError::Decode("no video stream".into()))?;
+        let stream = input.streams().best(Type::Video).ok_or_else(|| TvaError::Decode("no video stream".into()))?;
 
         // Metadata
         let par = stream.parameters();
@@ -61,44 +58,22 @@ impl FfmpegNativeDecoder {
         } else {
             0.0
         };
-        let total_frames = if fps > 0.0 && duration_ms > 0.0 {
-            (duration_ms / 1000.0 * fps).round() as u64
-        } else {
-            0
-        };
+        let total_frames = if fps > 0.0 && duration_ms > 0.0 { (duration_ms / 1000.0 * fps).round() as u64 } else { 0 };
 
         // Decoder from stream parameters
-        let decoder = stream
-            .parameters()
-            .decoder()
-            .video()
-            .map_err(|e| TvaError::Decode(format!("open video decoder: {e}")))?;
+        let decoder =
+            stream.parameters().decoder().video().map_err(|e| TvaError::Decode(format!("open video decoder: {e}")))?;
         let src_format = decoder.format();
 
         // Scaler: native decoder format -> RGB24, native resolution. Downscale
         // for analysis is done by pipeline/CLI flag above, not the decoder.
-        let scaler = ScaleCtx::get(
-            src_format,
-            width,
-            height,
-            Pixel::RGB24,
-            width,
-            height,
-            Flags::BILINEAR,
-        )
-        .map_err(|e| TvaError::Decode(format!("init scaler: {e}")))?;
+        let scaler = ScaleCtx::get(src_format, width, height, Pixel::RGB24, width, height, Flags::BILINEAR)
+            .map_err(|e| TvaError::Decode(format!("init scaler: {e}")))?;
 
         let rgb_frame = VideoFrame::new(Pixel::RGB24, width, height);
 
         Ok(Self {
-            meta: VideoMeta {
-                fps,
-                width,
-                height,
-                total_frames,
-                duration_ms,
-                codec: "ffmpeg-native".into(),
-            },
+            meta: VideoMeta { fps, width, height, total_frames, duration_ms, codec: "ffmpeg-native".into() },
             input,
             decoder,
             scaler,
@@ -133,10 +108,7 @@ impl FfmpegNativeDecoder {
                     let _ = self.decoder.send_eof();
                     let mut frame = VideoFrame::empty();
                     if self.decoder.receive_frame(&mut frame).is_ok() {
-                        return self.scale_to_rgb(
-                            frame,
-                            self.index as f64 / self.meta.fps.max(1.0) * 1000.0,
-                        );
+                        return self.scale_to_rgb(frame, self.index as f64 / self.meta.fps.max(1.0) * 1000.0);
                     }
                     return None;
                 }
@@ -169,11 +141,7 @@ impl FrameDecoder for FfmpegNativeDecoder {
         let data = PixelBuffer::new(rgb, self.width, self.height).ok()?;
         let idx = self.index;
         self.index += 1;
-        Some(Frame {
-            data,
-            index: idx,
-            timestamp_ms: pts_ms,
-        })
+        Some(Frame { data, index: idx, timestamp_ms: pts_ms })
     }
 }
 
