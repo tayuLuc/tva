@@ -42,7 +42,7 @@ pub struct FfmpegNativeDecoder {
 impl FfmpegNativeDecoder {
     pub fn open(path: &Path) -> Result<Self> {
         init_once();
-        let mut input = input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
+        let input = input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
 
         let stream = input.streams().best(Type::Video).ok_or_else(|| TvaError::Decode("no video stream".into()))?;
 
@@ -85,7 +85,7 @@ impl FfmpegNativeDecoder {
     fn decode_next(&mut self) -> Option<(Vec<u8>, f64)> {
         loop {
             match self.input.packets().next() {
-                Some(Ok((stream, packet))) => {
+                Some((stream, packet)) => {
                     if stream.index() != self.video_stream_index {
                         continue;
                     }
@@ -98,7 +98,6 @@ impl FfmpegNativeDecoder {
                         return self.scale_to_rgb(frame, pts_ms);
                     }
                 }
-                Some(Err(_)) => continue,
                 None => {
                     let _ = self.decoder.send_eof();
                     let mut frame = VideoFrame::empty();
