@@ -28,6 +28,7 @@ dssim-core = { version = "3.4", optional = true }
 savgol-rs = { version = "0.1", optional = true }
 rustfft = { version = "6.2", optional = true }
 video-rs = { version = "0.10", optional = true }
+ffmpeg-next = { version = "8.1.0", features = ["build"], optional = true }
 
 [lints.clippy]
 module_name_repetitions = "allow"
@@ -40,5 +41,6 @@ compare-image = ["dep:image", "dep:image-compare"]
 compare-dssim = ["dep:image", "dep:dssim-core"]
 smooth-savgol = ["dep:savgol-rs"]
 decode-ffmpeg = ["dep:video-rs"]
+decode-ffmpeg-native = ["dep:ffmpeg-next"]
 decode-images = ["dep:image"]
 fft = ["dep:rustfft"]

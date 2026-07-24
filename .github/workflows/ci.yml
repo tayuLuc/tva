@@ -75,6 +75,29 @@ jobs:
       - run: cargo check -p tva-cli
       - run: cargo check -p tva-core --features compare-image,smooth-savgol,fft
 
+  build-native:
+    name: Static libav link (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Build deps (ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nasm pkg-config make
+
+      - name: Build deps (macos)
+        if: runner.os == 'macOS'
+        run: brew install nasm
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: cargo check -p tva-core --features decode-ffmpeg-native
+
   # ── MegaLinter: YAML, Markdown, JSON, TOML, Dockerfile, Secrets ──
   megalinter:
     name: MegaLinter

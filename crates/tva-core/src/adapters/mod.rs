@@ -11,6 +11,9 @@ pub mod savgol;
 #[cfg(feature = "decode-ffmpeg")]
 pub mod video_rs;
 
+#[cfg(feature = "decode-ffmpeg-native")]
+pub mod ffmpeg_native;
+
 #[cfg(feature = "decode-images")]
 pub mod image_seq;
 
