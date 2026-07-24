@@ -8,12 +8,11 @@
 use std::path::Path;
 use std::sync::Once;
 
-use ffmpeg::format::context::Input;
-use ffmpeg::format::Pixel;
-use ffmpeg::media::Type;
-use ffmpeg::software::scaling::{context::Context as ScaleCtx, flag::Flags};
-use ffmpeg::util::frame::video::Video as VideoFrame;
-use ffmpeg::Rational;
+use ffmpeg_next::format::{context::Input, input, Pixel};
+use ffmpeg_next::media::Type;
+use ffmpeg_next::software::scaling::{context::Context as ScaleCtx, flag::Flags};
+use ffmpeg_next::util::frame::video::Video as VideoFrame;
+use ffmpeg_next::Rational;
 
 use crate::error::{Result, TvaError};
 use crate::frame::{Frame, VideoMeta};
@@ -24,14 +23,14 @@ use crate::traits::FrameDecoder;
 static INIT: Once = Once::new();
 fn init_once() {
     INIT.call_once(|| {
-        ffmpeg::init().expect("ffmpeg::init failed");
+        ffmpeg_next::init().expect("ffmpeg_next::init failed");
     });
 }
 
 pub struct FfmpegNativeDecoder {
     meta: VideoMeta,
     input: Input,
-    decoder: ffmpeg::decoder::Video,
+    decoder: ffmpeg_next::decoder::Video,
     scaler: ScaleCtx,
     rgb_frame: VideoFrame,
     width: u32,
@@ -42,8 +41,7 @@ pub struct FfmpegNativeDecoder {
 impl FfmpegNativeDecoder {
     pub fn open(path: &Path) -> Result<Self> {
         init_once();
-        let input =
-            ffmpeg::format::input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
+        let input = input(path).map_err(|e| TvaError::Decode(format!("open {}: {e}", path.display())))?;
 
         let stream = input.streams().best(Type::Video).ok_or_else(|| TvaError::Decode("no video stream".into()))?;
 
@@ -65,8 +63,8 @@ impl FfmpegNativeDecoder {
             stream.parameters().decoder().video().map_err(|e| TvaError::Decode(format!("open video decoder: {e}")))?;
         let src_format = decoder.format();
 
-        // Scaler: native decoder format -> RGB24, native resolution. Downscale
-        // for analysis is done by pipeline/CLI flag above, not the decoder.
+        // Scaler: native decoder format -> RGB24, native resolution.
+        // Downscale for analysis is done by pipeline/CLI flag above.
         let scaler = ScaleCtx::get(src_format, width, height, Pixel::RGB24, width, height, Flags::BILINEAR)
             .map_err(|e| TvaError::Decode(format!("init scaler: {e}")))?;
 
@@ -90,21 +88,19 @@ impl FfmpegNativeDecoder {
             match self.input.packets().next() {
                 Some(Ok((stream, packet))) => {
                     if stream.index() != self.decoder.index() {
-                        continue; // not video (audio/subtitle etc.)
+                        continue;
                     }
                     let pts_ms = packet_pts_ms(packet.pts(), stream.time_base());
                     if self.decoder.send_packet(&packet).is_err() {
-                        continue; // corrupt packet -- skip
+                        continue;
                     }
                     let mut frame = VideoFrame::empty();
                     if self.decoder.receive_frame(&mut frame).is_ok() {
                         return self.scale_to_rgb(frame, pts_ms);
                     }
-                    // EAGAIN: decoder needs more packets -- continue loop
                 }
-                Some(Err(_)) => continue, // packet read error -- skip
+                Some(Err(_)) => continue,
                 None => {
-                    // EOF: flush decoder and grab remaining frames
                     let _ = self.decoder.send_eof();
                     let mut frame = VideoFrame::empty();
                     if self.decoder.receive_frame(&mut frame).is_ok() {
@@ -146,9 +142,7 @@ impl FrameDecoder for FfmpegNativeDecoder {
 }
 
 impl Drop for FfmpegNativeDecoder {
-    fn drop(&mut self) {
-        // ffmpeg-next Drop for Input/decoder/scaler/frame is automatic.
-    }
+    fn drop(&mut self) {}
 }
 
 fn rational_to_f64(r: Rational) -> f64 {
