@@ -88,11 +88,14 @@ jobs:
 
       - name: Build deps (ubuntu)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nasm pkg-config make
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends nasm pkg-config make clang libclang-dev
 
       - name: Build deps (macos)
         if: runner.os == 'macOS'
-        run: brew install nasm
+        run: |
+          brew install nasm
+          # bindgen may need libclang; if the build fails on libclang, uncomment:
+          # brew install llvm && echo "LIBCLANG_PATH=$(brew --prefix llvm)/lib" >> $GITHUB_ENV
 
       - uses: Swatinem/rust-cache@v2
 
