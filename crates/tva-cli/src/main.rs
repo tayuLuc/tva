@@ -92,7 +92,7 @@ fn run(cli: Cli) -> tva_core::Result<()> {
                 Box::new(tva_core::adapters::image_seq::ImageSeqDecoder::open(&input, fps)?)
             } else {
                 return Err(tva_core::TvaError::Decode(
-                    "video files require decode-ffmpeg feature; use a directory of PNG/JPG frames instead".into(),
+                    "video files require decode-ffmpeg-native feature; use a directory of PNG/JPG frames instead".into(),
                 ));
             };
 
@@ -165,7 +165,7 @@ fn run(cli: Cli) -> tva_core::Result<()> {
         Command::Compare { a, b, metric, drift_ms, output } => {
             if !a.is_dir() || !b.is_dir() {
                 return Err(tva_core::TvaError::Decode(
-                    "compare needs two frame directories (video files require decode-ffmpeg)".into(),
+                    "compare needs two frame directories (video files require decode-ffmpeg-native)".into(),
                 ));
             }
 

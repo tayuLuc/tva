@@ -19,9 +19,7 @@ pub struct FfmpegNativeDecoder {
 
 impl FfmpegNativeDecoder {
     pub fn open(_path: &Path) -> Result<Self> {
-        Err(TvaError::AdapterNotEnabled(
-            "decode-ffmpeg-native: toolchain linked; decode body is the next pass",
-        ))
+        Err(TvaError::AdapterNotEnabled("decode-ffmpeg-native: toolchain linked; decode body is the next pass"))
     }
 }
 
