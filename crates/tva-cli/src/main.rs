@@ -1,9 +1,12 @@
 #![forbid(unsafe_code)]
 
 use clap::{Parser, Subcommand};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command as SystemCommand;
-use tva_core::adapters::{image_compare::metric_by_name, image_seq::ImageSeqDecoder};
+use tva_core::adapters::{
+    ffmpeg_native::FfmpegNativeDecoder, identity_smoother::IdentitySmoother, image_compare::metric_by_name,
+    image_seq::ImageSeqDecoder,
+};
 use tva_core::{
     config::PipelineConfig,
     degradation::{compare_sources, DegradationConfig},
@@ -88,14 +91,7 @@ fn main() {
 fn run(cli: Cli) -> tva_core::Result<()> {
     match cli.command {
         Command::Analyze { input, format, output, fps, metric, threshold, no_tears } => {
-            let mut decoder: Box<dyn tva_core::traits::FrameDecoder> = if input.is_dir() {
-                Box::new(tva_core::adapters::image_seq::ImageSeqDecoder::open(&input, fps)?)
-            } else {
-                return Err(tva_core::TvaError::Decode(
-                    "video files require decode-ffmpeg-native feature; use a directory of PNG/JPG frames instead"
-                        .into(),
-                ));
-            };
+            let mut decoder = open_decoder(&input, fps)?;
 
             let spec = metric_by_name(&metric)?;
             let dup_threshold = threshold.unwrap_or(spec.default_threshold);
@@ -164,15 +160,9 @@ fn run(cli: Cli) -> tva_core::Result<()> {
             Ok(())
         }
         Command::Compare { a, b, metric, drift_ms, output } => {
-            if !a.is_dir() || !b.is_dir() {
-                return Err(tva_core::TvaError::Decode(
-                    "compare needs two frame directories (video files require decode-ffmpeg-native)".into(),
-                ));
-            }
-
             let spec = metric_by_name(&metric)?;
-            let mut dec_a: Box<dyn FrameDecoder> = Box::new(ImageSeqDecoder::open(&a, None)?);
-            let mut dec_b: Box<dyn FrameDecoder> = Box::new(ImageSeqDecoder::open(&b, None)?);
+            let mut dec_a = open_decoder(&a, None)?;
+            let mut dec_b = open_decoder(&b, None)?;
 
             let cfg = match drift_ms {
                 Some(d) => DegradationConfig { max_time_drift_ms: d },
@@ -230,6 +220,15 @@ fn run(cli: Cli) -> tva_core::Result<()> {
             eprintln!("descaled {} -> {} ({vf})", input.display(), output.display());
             Ok(())
         }
+    }
+}
+
+/// Open a decoder: directory -> ImageSeqDecoder, file -> native libav decoder.
+fn open_decoder(path: &Path, fps: Option<f64>) -> tva_core::Result<Box<dyn FrameDecoder>> {
+    if path.is_dir() {
+        Ok(Box::new(ImageSeqDecoder::open(path, fps)?))
+    } else {
+        Ok(Box::new(FfmpegNativeDecoder::open(path)?))
     }
 }
 
